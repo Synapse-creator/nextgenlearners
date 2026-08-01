@@ -1,0 +1,266 @@
+
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Volume2, Star } from 'lucide-react';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import Image from 'next/image';
+import { Card, CardContent } from '@/components/ui/card';
+import { CloudIcon } from '@/components/icons';
+
+interface GameItem {
+    id: number;
+    value: number; 
+    problem?: string; 
+    x: number;
+    y: number;
+    delay: number;
+    size: number;
+    color: string;
+}
+
+const generateProblem = (level: string) => {
+    let num1, num2, answer, problem;
+
+    switch (level) {
+        case 'KG':
+        case 'Class 1': // Addition/Subtraction
+            num1 = Math.floor(Math.random() * 10) + 1;
+            num2 = Math.floor(Math.random() * 10) + 1;
+            if (Math.random() > 0.5) {
+                answer = num1 + num2;
+                problem = `${num1} + ${num2}`;
+            } else {
+                if (num1 < num2) [num1, num2] = [num2, num1];
+                answer = num1 - num2;
+                problem = `${num1} - ${num2}`;
+            }
+            return { answer, problem };
+        case 'Class 2':
+        case 'Class 3': // Addition/Subtraction/Multiplication
+            const operator = Math.random();
+            if (operator < 0.33) { // Multiplication
+                 num1 = Math.floor(Math.random() * 10) + 1;
+                 num2 = Math.floor(Math.random() * 10) + 1;
+                 answer = num1 * num2;
+                 problem = `${num1} × ${num2}`;
+            } else if (operator < 0.66) { // Addition
+                 num1 = Math.floor(Math.random() * 20) + 1;
+                 num2 = Math.floor(Math.random() * 20) + 1;
+                 answer = num1 + num2;
+                 problem = `${num1} + ${num2}`;
+            } else { // Subtraction
+                 num1 = Math.floor(Math.random() * 20) + 5;
+                 num2 = Math.floor(Math.random() * num1) + 1;
+                 answer = num1 - num2;
+                 problem = `${num1} - ${num2}`;
+            }
+            return { answer, problem };
+        default: // PG, Nursery - Number Recognition
+            answer = Math.floor(Math.random() * 10) + 1;
+            return { answer, problem: answer.toString() };
+    }
+};
+
+const shuffleArray = (array: any[]) => [...array].sort(() => Math.random() - 0.5);
+const bubbleColors = ['bg-pink-400/50', 'bg-blue-400/50', 'bg-green-400/50', 'bg-purple-400/50', 'bg-orange-400/50'];
+
+const checkCollision = (item1: GameItem, item2: GameItem) => {
+    const dx = item1.x - item2.x;
+    const dy = item1.y - item2.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance < (item1.size / 2 + item2.size / 2);
+};
+
+export default function NumberBubblePop({ studentClass, studentId, subject }: { studentClass: string; studentId: string; subject: string }) {
+    const { toast } = useToast();
+    const gameAreaRef = useRef<HTMLDivElement>(null);
+    const [target, setTarget] = useState<{ answer: number; problem: string }>({ answer: 0, problem: '' });
+    const [options, setOptions] = useState<GameItem[]>([]);
+    const [score, setScore] = useState(0);
+    const [gameState, setGameState] = useState<'playing' | 'correct'>('playing');
+    const [poppedId, setPoppedId] = useState<number | null>(null);
+
+    const setupRound = useCallback(() => {
+        if (!gameAreaRef.current) return;
+        const { width, height } = gameAreaRef.current.getBoundingClientRect();
+        
+        setPoppedId(null);
+        const newTarget = generateProblem(studentClass);
+        setTarget(newTarget);
+        
+        const distractors = new Set<number>();
+        while (distractors.size < 4) {
+            const randomAnswer = generateProblem(studentClass).answer;
+            if (randomAnswer !== newTarget.answer) {
+                distractors.add(randomAnswer);
+            }
+        }
+        
+        const optionValues = shuffleArray([newTarget.answer, ...Array.from(distractors)]);
+        const newOptions: GameItem[] = [];
+
+        optionValues.forEach((value, index) => {
+            let newItem: GameItem;
+            let collision: boolean;
+            let attempts = 0;
+            const itemSize = (80 + Math.random() * 40) * (width < 640 ? 0.7 : 1);
+
+            do {
+                collision = false;
+                newItem = {
+                    id: Date.now() + index,
+                    value,
+                    x: Math.random() * (width - itemSize),
+                    y: Math.random() * (height - itemSize - 80) + 80,
+                    delay: Math.random() * 1,
+                    size: itemSize,
+                    color: bubbleColors[index % bubbleColors.length],
+                };
+                for (const existingItem of newOptions) {
+                    if (checkCollision(newItem, existingItem)) {
+                        collision = true;
+                        break;
+                    }
+                }
+                attempts++;
+            } while (collision && attempts < 100);
+
+            newOptions.push(newItem);
+        });
+        
+        setOptions(newOptions);
+        setGameState('playing');
+    }, [studentClass]);
+
+    useEffect(() => {
+        const timeoutId = setTimeout(setupRound, 100);
+        window.addEventListener('resize', setupRound);
+        return () => {
+             clearTimeout(timeoutId);
+             window.removeEventListener('resize', setupRound)
+        };
+    }, [setupRound]);
+
+    const handleItemClick = (item: GameItem) => {
+        if (gameState !== 'playing') return;
+
+        if (item.value === target.answer) {
+            const newScore = score + 1;
+            setScore(newScore);
+            setGameState('correct');
+            setPoppedId(item.id);
+            saveProgress(newScore);
+            setTimeout(setupRound, 2000);
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Try Again!",
+                description: "That's not the right answer.",
+            });
+        }
+    };
+
+    const saveProgress = async (currentScore: number) => {
+        const userDocRef = doc(db, 'users', studentId);
+        try {
+            await updateDoc(userDocRef, {
+                'gameProgress.numberBubblePop': {
+                    score: currentScore,
+                    lastPlayed: serverTimestamp()
+                }
+            });
+        } catch (error) {
+            console.error("Error saving game progress:", error);
+        }
+    };
+
+    return (
+        <Card className="w-full h-auto sm:h-[500px] aspect-[9/16] sm:aspect-auto relative overflow-hidden shadow-lg border-4 border-primary/20 bg-gradient-to-b from-blue-200 to-blue-300">
+            <CloudIcon className="absolute top-10 -left-10 w-48 h-48 text-white/50 animate-float" style={{ animationDuration: '10s' }} />
+            <CloudIcon className="absolute bottom-5 -right-12 w-64 h-64 text-white/60 animate-float" style={{ animationDuration: '12s', animationDelay: '2s' }} />
+
+            <CardContent className="p-2 sm:p-4 h-full relative z-10">
+                <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 flex justify-between items-center z-20">
+                    <div className="bg-background/80 p-2 rounded-lg shadow-md backdrop-blur-sm">
+                        <h3 className="text-base sm:text-lg font-bold font-headline flex items-center">
+                            <span>{studentClass === 'PG' || studentClass === 'Nursery' ? "Pop:" : "Solve:"}</span>
+                            <span className="ml-2 sm:ml-3 text-xl sm:text-2xl tracking-widest text-primary">{target.problem}</span>
+                        </h3>
+                    </div>
+                    <div className="bg-background/80 p-2 rounded-lg shadow-md flex items-center gap-2 backdrop-blur-sm">
+                        <Star className="text-yellow-400 fill-yellow-400" />
+                        <span className="text-lg sm:text-xl font-bold">{score}</span>
+                    </div>
+                </div>
+
+                <div className="h-full w-full" ref={gameAreaRef}>
+                  <AnimatePresence>
+                    {options.map((item) => (
+                        <motion.div
+                            key={item.id}
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ 
+                                scale: poppedId === item.id ? 0 : 1, 
+                                opacity: poppedId === item.id ? 0 : 1,
+                            }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 20, delay: item.delay }}
+                            className="absolute"
+                            style={{
+                                top: item.y,
+                                left: item.x,
+                            }}
+                        >
+                             <motion.button
+                                onClick={() => handleItemClick(item)}
+                                className={cn(
+                                    "text-xl sm:text-2xl font-bold rounded-full shadow-lg text-white backdrop-blur-sm border-2 border-white/30",
+                                    "flex items-center justify-center",
+                                    item.color
+                                )}
+                                style={{
+                                    width: item.size,
+                                    height: item.size
+                                }}
+                                whileHover={{ scale: 1.1, transition: { duration: 0.2 } }}
+                                whileTap={{ scale: 0.9 }}
+                                animate={{
+                                    y: [0, -10, 0],
+                                }}
+                                transition={{
+                                    duration: 5,
+                                    repeat: Infinity,
+                                    ease: "easeInOut",
+                                    delay: item.delay,
+                                }}
+                            >
+                                {item.value}
+                            </motion.button>
+                        </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+
+                <AnimatePresence>
+                    {gameState === 'correct' && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.5 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.5 }}
+                            className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none"
+                        >
+                            <Image src="/games/win.gif" alt="Correct" width={300} height={300} unoptimized />
+                            <h2 className="text-5xl font-extrabold text-white drop-shadow-lg font-headline -mt-16">Correct!</h2>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </CardContent>
+        </Card>
+    );
+}

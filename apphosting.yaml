@@ -1,0 +1,48 @@
+# The name of the backend.
+# This is optional, but recommended.
+# If you don't specify a name, a name will be generated for you.
+name: studio
+# This is a comment
+runConfig:
+  # The service will automatically scale based on demand.
+  minInstances: 1
+  maxInstances: 20
+  # The service will automatically scale based on demand.
+  cpu: 1
+  memoryMiB: 512
+  # The service will be deployed to the us-central1 region.
+  location: us-central1
+build:
+  # This is the command that will be used to build your application.
+  # This is optional, but recommended.
+  # If you don't specify a command, we will try to figure out how to build your application.
+  # We will look for a package.json file and run "npm run build" if it exists.
+  # We will look for a Gemfile and run "bundle install" if it exists.
+  # We will look for a requirements.txt file and run "pip install -r requirements.txt" if it exists.
+  # We will look for a go.mod file and run "go build" if it exists.
+  buildCommand: npm run build
+  # This is the command that will be used to start your application.
+  # This is required if you specify a buildCommand.
+  # We will run this command after building your application.
+  startCommand: npm run start
+  # This is a list of files that will be ignored when building your application.
+  # This is optional.
+  # If you don't specify a list, we will ignore the following files:
+  #   .git
+  #   .gitignore
+  #   .dockerignore
+  #   node_modules
+  #   .idea
+  #   .vscode
+  #   .DS_Store
+  #   *.log
+  #   *.swp
+  #   *.bak
+  #   *.tmp
+  #   *.orig
+  #   *.patch
+  #   *.diff
+  #   *.rej
+  fetch: []
+  exclude:
+    - src/ai/dev.ts
