@@ -1,61 +1,69 @@
 
 'use server';
-/**
- * @fileOverview Generates assessment questions to determine a child's class readiness.
- *
- * - assessReadiness - A function that generates the assessment questions.
- * - AssessReadinessInput - The input type for the function.
- * - AssessReadinessOutput - The return type for the function.
- */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { askGroq } from '@/ai/groq';
 
-const AssessReadinessInputSchema = z.object({
-  childAge: z.number().int().min(2).max(8).describe('The age of the child.'),
-});
-export type AssessReadinessInput = z.infer<typeof AssessReadinessInputSchema>;
+export type AssessReadinessInput = {
+  childAge: number;
+};
 
-const QuestionSchema = z.object({
-    questionText: z.string().describe("The text of the assessment question."),
-    options: z.array(z.string()).describe("An array of 3-4 simple, possible answers for the question."),
-    correctAnswerIndex: z.number().int().min(0).max(3).describe("The 0-based index of the correct answer in the options array."),
-    level: z.enum(["PG", "Nursery", "KG", "Class 1"]).describe("The class level this question is designed to assess."),
-});
+export type QuestionItem = {
+  questionText: string;
+  options: string[];
+  correctAnswerIndex: number;
+  level: "PG" | "Nursery" | "KG" | "Class 1";
+};
 
-const AssessReadinessOutputSchema = z.object({
-  questions: z.array(QuestionSchema).describe('The array of generated assessment questions.'),
-});
-export type AssessReadinessOutput = z.infer<typeof AssessReadinessOutputSchema>;
+export type AssessReadinessOutput = {
+  questions: QuestionItem[];
+};
 
 export async function assessReadiness(input: AssessReadinessInput): Promise<AssessReadinessOutput> {
-  return assessReadinessFlow(input);
+  try {
+    const systemPrompt = `You are an expert early childhood educator. Generate a 4-question assessment JSON to assess class readiness for a child aged ${input.childAge}.
+Respond strictly in JSON matching this structure:
+{
+  "questions": [
+    {
+      "questionText": "Can your child identify the letter A?",
+      "options": ["Yes, easily", "Getting started", "Not yet"],
+      "correctAnswerIndex": 0,
+      "level": "PG"
+    }
+  ]
+}`;
+    const userPrompt = `Child Age: ${input.childAge}`;
+    const rawJson = await askGroq(systemPrompt, userPrompt, true);
+    const parsed = JSON.parse(rawJson);
+    if (parsed.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+      return parsed;
+    }
+  } catch (err) {
+    console.error('Error assessing readiness via Groq:', err);
+  }
+
+  // Fallback assessment
+  return {
+    questions: [
+      {
+        questionText: "Can your child count 5 objects in front of them?",
+        options: ["Yes, accurately", "Needs a little help", "Not yet"],
+        correctAnswerIndex: 0,
+        level: input.childAge <= 3 ? "PG" : "Nursery"
+      },
+      {
+        questionText: "Can your child identify basic colors (Red, Blue, Yellow)?",
+        options: ["Recognizes all of them", "Recognizes some", "Learning them now"],
+        correctAnswerIndex: 0,
+        level: input.childAge <= 4 ? "Nursery" : "KG"
+      },
+      {
+        questionText: "Can your child speak in simple, clear sentences?",
+        options: ["Very clearly", "In short 2-3 word phrases", "Still developing"],
+        correctAnswerIndex: 0,
+        level: input.childAge <= 5 ? "KG" : "Class 1"
+      }
+    ]
+  };
 }
 
-const prompt = ai.definePrompt({
-  name: 'assessReadinessPrompt',
-  input: {schema: AssessReadinessInputSchema},
-  output: {schema: AssessReadinessOutputSchema},
-  prompt: `You are an expert in early childhood education. Your task is to generate a simple, 4-question assessment to help a parent determine the most suitable class for their child aged {{{childAge}}}.
-
-  Instructions:
-  1.  Generate exactly 4 multiple-choice questions in total.
-  2.  The questions should cover a range of age-appropriate skills for a {{{childAge}}}-year-old, touching on basic literacy (letter/sound recognition), numeracy (counting, number recognition), and general concepts (colors, shapes, animals).
-  3.  Assign a difficulty 'level' to each question corresponding to the class it assesses. Create a mix of questions from the following levels: "PG", "Nursery", "KG", "Class 1". For example, for a 3-year-old, you might generate 2 PG questions, 1 Nursery, and 1 KG. For a 5-year-old, you might generate 1 Nursery, 2 KG, and 1 Class 1 question.
-  4.  Each question must have 3-4 simple, clear options.
-  5.  Ensure the questions are fun, engaging, and easy for a parent to ask their child.
-  6.  For each question, provide the 0-based index of the correct answer.
-  `,
-});
-
-const assessReadinessFlow = ai.defineFlow(
-  {
-    name: 'assessReadinessFlow',
-    inputSchema: AssessReadinessInputSchema,
-    outputSchema: AssessReadinessOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);

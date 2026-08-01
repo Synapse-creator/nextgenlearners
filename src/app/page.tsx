@@ -102,47 +102,109 @@ const ComparisonCell = ({ content }: { content: string }) => {
     return <span>{content}</span>;
 };
 
+const NAV_ITEMS = [
+    { label: '🌟 Features', id: 'features-section' },
+    { label: '📚 Curriculum', id: 'curriculum-section' },
+    { label: '❓ FAQs', id: 'faq-section' },
+];
+
 const Header = ({ onEnrollClick }: { onEnrollClick: () => void }) => {
     const [scrolled, setScrolled] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 10);
-        };
+        const handleScroll = () => setScrolled(window.scrollY > 10);
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
     const scrollToSection = (id: string) => {
+        setMobileOpen(false);
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-    }
+    };
 
     return (
         <header className={cn(
             "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-            scrolled ? "bg-background/80 shadow-md backdrop-blur-sm" : "bg-transparent"
+            scrolled
+                ? "bg-white/90 shadow-lg backdrop-blur-md"
+                : "bg-white/70 backdrop-blur-sm"
         )}>
-            <div className="container mx-auto flex items-center justify-between p-4">
-                <div className="flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection('hero-section')}>
-                    <Image src="/logo.png" alt="NextGen Learners Logo" width={120} height={30} priority />
+            {/* Rainbow top bar */}
+            <div className="h-1 w-full bg-gradient-to-r from-red-400 via-yellow-400 via-green-400 via-blue-400 to-purple-400" />
+
+            <div className="container mx-auto flex items-center justify-between px-4 py-2">
+                {/* Logo */}
+                <div
+                    className="flex items-center gap-2 cursor-pointer group"
+                    onClick={() => scrollToSection('hero-section')}
+                >
+                    <Image src="/logo.png" alt="NextGen Learners Logo" width={130} height={35} priority />
                 </div>
-                <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-                    <button onClick={() => scrollToSection('features-section')} className="text-foreground/80 hover:text-primary transition-colors">Features</button>
-                    <button onClick={() => scrollToSection('curriculum-section')} className="text-foreground/80 hover:text-primary transition-colors">Curriculum</button>
-                    <button onClick={() => scrollToSection('faq-section')} className="text-foreground/80 hover:text-primary transition-colors">FAQs</button>
+
+                {/* Desktop Nav */}
+                <nav className="hidden md:flex items-center gap-1">
+                    {NAV_ITEMS.map((item) => (
+                        <button
+                            key={item.id}
+                            onClick={() => scrollToSection(item.id)}
+                            className="px-4 py-2 rounded-full text-sm font-bold text-slate-600 hover:bg-primary/10 hover:text-primary transition-all duration-200 hover:scale-105 active:scale-95"
+                        >
+                            {item.label}
+                        </button>
+                    ))}
                 </nav>
-                 <div className="flex items-center gap-2">
+
+                {/* Actions */}
+                <div className="flex items-center gap-2">
                     <Link href="/login">
-                        <Button variant="ghost">Login</Button>
+                        <Button variant="ghost" className="rounded-full font-bold text-slate-600 hover:text-primary hover:bg-primary/10">
+                            🔑 Login
+                        </Button>
                     </Link>
-                    <Button onClick={onEnrollClick} className="btn-bounce">
-                        Enroll Now <ArrowRight className="w-4 h-4 ml-2" />
+                    <Button
+                        onClick={onEnrollClick}
+                        className="rounded-full font-bold px-5 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-400 shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 text-white"
+                    >
+                        ✨ Enroll Now
                     </Button>
+                    {/* Mobile menu toggle */}
+                    <button
+                        className="md:hidden ml-1 p-2 rounded-full hover:bg-primary/10 text-2xl"
+                        onClick={() => setMobileOpen(!mobileOpen)}
+                        aria-label="Toggle menu"
+                    >
+                        {mobileOpen ? '✕' : '☰'}
+                    </button>
                 </div>
             </div>
+
+            {/* Mobile Nav */}
+            {mobileOpen && (
+                <div className="md:hidden bg-white/95 backdrop-blur-md border-t border-primary/10 px-4 pb-4 pt-2 flex flex-col gap-2 shadow-lg">
+                    {NAV_ITEMS.map((item) => (
+                        <button
+                            key={item.id}
+                            onClick={() => scrollToSection(item.id)}
+                            className="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-slate-600 hover:bg-primary/10 hover:text-primary transition-all"
+                        >
+                            {item.label}
+                        </button>
+                    ))}
+                    <Link href="/login" onClick={() => setMobileOpen(false)}>
+                        <Button variant="outline" className="w-full rounded-xl font-bold">🔑 Login</Button>
+                    </Link>
+                    <Button
+                        onClick={() => { setMobileOpen(false); onEnrollClick(); }}
+                        className="w-full rounded-xl font-bold bg-gradient-to-r from-primary to-purple-500 text-white"
+                    >
+                        ✨ Enroll Now
+                    </Button>
+                </div>
+            )}
         </header>
-    )
-}
+    );
+};
 
 
 export default function LandingPage() {

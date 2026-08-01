@@ -1,57 +1,33 @@
 'use server';
-/**
- * @fileOverview Generates a short, age-appropriate reading passage for a child.
- *
- * - generateReadingPassage - A function that generates the passage.
- * - GenerateReadingPassageInput - The input type for the function.
- * - GenerateReadingPassageOutput - The return type for the function.
- */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { askGroq } from '@/ai/groq';
 
-const GenerateReadingPassageInputSchema = z.object({
-  topic: z.string().describe("The topic for the reading passage (e.g., 'a friendly dragon', 'a magical forest')."),
-  studentClass: z.string().describe("The student's class level (e.g., 'PG', 'KG', 'Class 1')."),
-});
-export type GenerateReadingPassageInput = z.infer<typeof GenerateReadingPassageInputSchema>;
+export type GenerateReadingPassageInput = {
+  topic: string;
+  studentClass: string;
+};
 
-const GenerateReadingPassageOutputSchema = z.object({
-  passage: z.string().describe('The generated short reading passage.'),
-});
-export type GenerateReadingPassageOutput = z.infer<typeof GenerateReadingPassageOutputSchema>;
+export type GenerateReadingPassageOutput = {
+  passage: string;
+  comprehensionQuestion: { question: string; answer: string };
+};
 
 export async function generateReadingPassage(input: GenerateReadingPassageInput): Promise<GenerateReadingPassageOutput> {
-  return generateReadingPassageFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'generateReadingPassagePrompt',
-  input: {schema: GenerateReadingPassageInputSchema},
-  output: {schema: GenerateReadingPassageOutputSchema},
-  prompt: `You are a creative storyteller for young children who are learning to read. Your task is to write a very short, simple, and engaging reading passage.
-
-  Topic: {{{topic}}}
-  Class Level: {{{classLevel}}}
-
-  Instructions:
-  1.  Write a single paragraph that is 3-5 sentences long.
-  2.  The story should be happy, positive, and imaginative.
-  3.  Crucially, the language and sentence structure MUST be appropriate for a child in {{{classLevel}}}.
-      - For PG/Nursery/KG: Use very simple, high-frequency words and short sentences (e.g., "The cat sat. The cat is fat.").
-      - For Class 1-3: You can introduce slightly more complex words and sentence structures, but keep it clear and easy to follow.
-  4.  The passage should be perfect for a child to practice reading aloud.
-  `,
-});
-
-const generateReadingPassageFlow = ai.defineFlow(
-  {
-    name: 'generateReadingPassageFlow',
-    inputSchema: GenerateReadingPassageInputSchema,
-    outputSchema: GenerateReadingPassageOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  try {
+    const systemPrompt = `You are a creative children's author. Write a very short (3-4 sentence) age-appropriate reading passage and one comprehension question. Return JSON:
+{"passage":"...","comprehensionQuestion":{"question":"...","answer":"..."}}`;
+    const userPrompt = `Topic: ${input.topic}\nClass Level: ${input.studentClass}`;
+    const rawJson = await askGroq(systemPrompt, userPrompt, true);
+    const parsed = JSON.parse(rawJson);
+    if (parsed.passage && parsed.comprehensionQuestion) return parsed;
+  } catch (err) {
+    console.error('Error generating reading passage via Groq:', err);
   }
-);
+  return {
+    passage: `Once upon a time, there was a friendly little ${input.topic || 'star'} who loved to learn. Every day, the ${input.topic || 'star'} would explore new things and make new friends. Learning was the greatest adventure of all!`,
+    comprehensionQuestion: {
+      question: `What did the ${input.topic || 'star'} love to do?`,
+      answer: 'Learn and explore!'
+    }
+  };
+}
