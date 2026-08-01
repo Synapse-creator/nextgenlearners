@@ -127,7 +127,7 @@ export default function ScienceLabAdventure({ studentClass }: { studentClass: st
                 <Image src="/games/win.gif" alt="Experiment Success!" width={300} height={300} unoptimized />
                 <h2 className="text-4xl font-extrabold text-primary font-headline -mt-16">Eureka!</h2>
                 <p className="text-xl font-semibold mt-4">{level.result.text}</p>
-                {level.result.color && <div className={`w-20 h-20 rounded-full ${level.result.color} mt-2 border-4 border-white shadow-lg`}></div>}
+                {'color' in level.result && <div className={`w-20 h-20 rounded-full ${level.result.color} mt-2 border-4 border-white shadow-lg`}></div>}
                 <Button onClick={resetGame} className="mt-8">
                     <Repeat className="mr-2" />
                     New Experiment
@@ -137,7 +137,7 @@ export default function ScienceLabAdventure({ studentClass }: { studentClass: st
     }
 
     return (
-        <DndContext onDragEnd={handleDragEnd} onDragOver={() => setIsOver(true)} onDragLeave={() => setIsOver(false)}>
+        <DndContext onDragEnd={handleDragEnd} onDragOver={() => setIsOver(true)}>
             <Card className="w-full h-auto sm:h-[500px] relative overflow-hidden shadow-lg border-4 border-primary/20 bg-blue-50 p-4 flex flex-col">
                 <div className="text-center mb-4">
                     <h2 className="text-lg sm:text-2xl font-bold font-headline text-blue-800">Science Lab Adventure</h2>

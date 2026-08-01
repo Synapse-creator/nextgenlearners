@@ -113,7 +113,7 @@ export default function StudentDashboardPage() {
       case 'dashboard':
         return <DashboardView onSelectSubject={handleSelectSubject} />;
       case 'subjects':
-        return <StudentSubjectsView activeSubject={activeSubject} setActiveSubject={setActiveSubject} />;
+        return <StudentSubjectsView selectedSubject={activeSubject} setSelectedSubject={setActiveSubject} />;
       case 'syllabus':
         return <SyllabusView />;
       case 'reading_buddy':

@@ -165,10 +165,10 @@ export default function CreateQuizForm({ setOpen, selectedClass, subject, onQuiz
                 <div className="space-y-4">
                     {quizData.questions.map((q, idx) => (
                         <div key={idx} className="space-y-1">
-                            <p className="font-semibold text-sm">{idx + 1}. {q.question}</p>
+                            <p className="font-semibold text-sm">{idx + 1}. {q.questionText}</p>
                             <ul className="text-xs text-muted-foreground list-disc list-inside">
                                 {q.options.map((opt: string, oIdx: number) => (
-                                    <li key={oIdx} className={opt === q.correctAnswer ? "font-semibold text-green-600" : ""}>
+                                    <li key={oIdx} className={oIdx === q.correctAnswerIndex ? "font-semibold text-green-600" : ""}>
                                         {opt}
                                     </li>
                                 ))}
