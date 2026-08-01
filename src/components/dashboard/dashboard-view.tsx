@@ -94,15 +94,37 @@ const JoinClassButton = ({ session }: { session: TimetableItem }) => {
   );
 };
 
+import { generateEncouragement } from "@/ai/flows/generate-encouragement-flow";
+import { Sparkles, RefreshCw } from "lucide-react";
+
 export default function DashboardView({ onSelectSubject }: DashboardViewProps) {
   const [userData, setUserData] = useState<UserData>({});
   const [schedule, setSchedule] = useState<TimetableItem[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(true);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [aiMotivationalMessage, setAiMotivationalMessage] = useState<string>("");
+  const [loadingMessage, setLoadingMessage] = useState<boolean>(false);
 
   const studentClass = userData.class || "Class 3";
   const rawSubjects = subjectsByClass[studentClass] || subjectsByClass["Class 3"] || ["Young Authors", "Number Wizards", "Science Safari"];
+  const studentFirstName = userData.name ? userData.name.split(' ')[0] : "Ahmad";
+
+  const loadAiMessage = async (name: string) => {
+    setLoadingMessage(true);
+    try {
+      const res = await generateEncouragement({ studentName: name });
+      if (res?.message) {
+        setAiMotivationalMessage(res.message);
+      } else {
+        setAiMotivationalMessage(`${name}, you have explored 5 new planets this week! Keep shining like a star! ⭐`);
+      }
+    } catch (err) {
+      setAiMotivationalMessage(`${name}, every step you take in learning brings you closer to your big dreams! 🚀`);
+    } finally {
+      setLoadingMessage(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -118,6 +140,7 @@ export default function DashboardView({ onSelectSubject }: DashboardViewProps) {
       // Fetch user profile
       const { data: userProfile } = await supabase.from('users').select('*').eq('uid', user.id).single();
       if (userProfile) {
+        const name = userProfile.name || "Ahmad";
         setUserData({
           name: userProfile.name,
           class: userProfile.class_name || userProfile.class,
@@ -127,6 +150,7 @@ export default function DashboardView({ onSelectSubject }: DashboardViewProps) {
           ],
         });
         setLoadingSubjects(false);
+        loadAiMessage(name.split(' ')[0]);
 
         // Fetch today's schedule
         const today = new Date().toLocaleDateString('en-us', { weekday: 'long' });
@@ -152,8 +176,9 @@ export default function DashboardView({ onSelectSubject }: DashboardViewProps) {
         }
         setLoadingSchedule(false);
       } else {
+        const fallbackName = user.user_metadata?.name || "Ahmad Dawood";
         setUserData({
-          name: user.user_metadata?.name || "Ahmad Dawood",
+          name: fallbackName,
           class: "Class 3",
           badges: [
             { title: "Star Scholar", date: "This Week" },
@@ -162,13 +187,12 @@ export default function DashboardView({ onSelectSubject }: DashboardViewProps) {
         });
         setLoadingSubjects(false);
         setLoadingSchedule(false);
+        loadAiMessage(fallbackName.split(' ')[0]);
       }
     };
 
     fetchData();
   }, []);
-
-  const studentFirstName = userData.name ? userData.name.split(' ')[0] : "Ahmad";
 
   return (
     <div className="space-y-10 relative z-10 pb-12">
@@ -205,21 +229,38 @@ export default function DashboardView({ onSelectSubject }: DashboardViewProps) {
           <div className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-transparent"></div>
         </div>
         <div className="relative z-10 p-8 md:p-14 max-w-2xl">
-          <span className="inline-block px-4 py-1.5 bg-[#FFF9C4] text-[#2c6956] rounded-full text-xs font-bold mb-4 shadow-sm">
-            ⭐ Achievement Unlocked
+          <span className="inline-block px-4 py-1.5 bg-[#FFF9C4] text-[#2c6956] rounded-full text-xs font-bold mb-4 shadow-sm flex items-center gap-1.5 w-fit">
+            <Sparkles className="w-4 h-4 text-[#795836]" /> Daily AI Inspiration
           </span>
           <h3 className="text-3xl md:text-5xl font-bold font-headline text-[#2c6956] mb-4 leading-tight">
             Message For You!
           </h3>
-          <p className="text-base md:text-lg text-[#404945] leading-relaxed font-body">
-            "{studentFirstName}, you have explored 5 new planets this week! I'm so proud of your curiosity and hard work. Keep shining like a star!"
+          <p className="text-base md:text-lg text-[#404945] leading-relaxed font-body min-h-[50px]">
+            {loadingMessage ? (
+              <span className="flex items-center gap-2 text-[#636E72]">
+                <Loader2 className="w-5 h-5 animate-spin text-[#2c6956]" /> Crafting your AI learning message...
+              </span>
+            ) : (
+              `"${aiMotivationalMessage || `${studentFirstName}, keep learning and reaching for the stars every single day! ⭐`}"`
+            )}
           </p>
-          <button
-            onClick={() => setShowStatsModal(true)}
-            className="mt-6 px-8 py-3.5 bg-[#2c6956] hover:bg-[#1e4b3d] text-white rounded-full font-bold shadow-lg shadow-[#2c6956]/20 squishy-btn flex items-center gap-2 text-sm md:text-base"
-          >
-            Check My Stats <span className="material-symbols-outlined text-lg">trending_up</span>
-          </button>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowStatsModal(true)}
+              className="px-8 py-3.5 bg-[#2c6956] hover:bg-[#1e4b3d] text-white rounded-full font-bold shadow-lg shadow-[#2c6956]/20 squishy-btn flex items-center gap-2 text-sm md:text-base"
+            >
+              Check My Stats <span className="material-symbols-outlined text-lg">trending_up</span>
+            </button>
+            <button
+              onClick={() => loadAiMessage(studentFirstName)}
+              disabled={loadingMessage}
+              className="px-5 py-3.5 bg-white border border-[#2c6956]/30 text-[#2c6956] hover:bg-[#A8E6CF]/20 rounded-full font-bold shadow-sm squishy-btn flex items-center gap-2 text-xs md:text-sm"
+              title="Get a new AI message"
+            >
+              <RefreshCw className={cn("w-4 h-4", loadingMessage && "animate-spin")} />
+              New Motivation
+            </button>
+          </div>
         </div>
       </section>
 
