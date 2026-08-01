@@ -22,7 +22,15 @@ const GenerateMiniStoryOutputSchema = z.object({
 export type GenerateMiniStoryOutput = z.infer<typeof GenerateMiniStoryOutputSchema>;
 
 export async function generateMiniStory(input: GenerateMiniStoryInput): Promise<GenerateMiniStoryOutput> {
-  return generateMiniStoryFlow(input);
+  try {
+    const res = await generateMiniStoryFlow(input);
+    if (res && res.story) return res;
+  } catch (err) {
+    console.error('Error generating mini story via AI:', err);
+  }
+  return {
+    story: `Once upon a time, ${input.characterName || 'a brave young learner'} went on an exciting adventure involving ${input.topic || 'wonder and discovery'}! With a warm heart and bright eyes, ${input.characterName || 'they'} learned something wonderful that brought joy to everyone around.`
+  };
 }
 
 const prompt = ai.definePrompt({

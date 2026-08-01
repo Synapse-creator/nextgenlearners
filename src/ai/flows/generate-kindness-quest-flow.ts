@@ -14,8 +14,25 @@ const GenerateKindnessQuestOutputSchema = z.object({
 });
 export type GenerateKindnessQuestOutput = z.infer<typeof GenerateKindnessQuestOutputSchema>;
 
+const fallbackQuests = [
+  "Your mission today is to give a big smile to three different people!",
+  "Can you help a family member with a small chore without being asked?",
+  "Today's quest is to say something nice to a friend.",
+  "Your challenge is to draw a happy picture for someone in your family.",
+  "Can you share one of your toys or snacks with a friend today?",
+  "Say a warm 'Thank you' to your teacher or parent today!",
+  "Give someone you love a big high-five or a warm hug!",
+];
+
 export async function generateKindnessQuest(): Promise<GenerateKindnessQuestOutput> {
-  return generateKindnessQuestFlow();
+  try {
+    const res = await generateKindnessQuestFlow();
+    if (res && res.quest) return res;
+  } catch (err) {
+    console.error('Error generating kindness quest via AI:', err);
+  }
+  const randomQuest = fallbackQuests[Math.floor(Math.random() * fallbackQuests.length)];
+  return { quest: randomQuest };
 }
 
 const prompt = ai.definePrompt({
@@ -42,3 +59,4 @@ const generateKindnessQuestFlow = ai.defineFlow(
     return output!;
   }
 );
+
