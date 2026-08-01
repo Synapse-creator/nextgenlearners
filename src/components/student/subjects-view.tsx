@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -23,6 +22,7 @@ import GoodDeedsPath from "./games/good-deeds-path";
 import GoodMannersMaze from "./games/good-manners-maze";
 import MathBalance from "./games/math-balance";
 import SpellingBee from "./games/spelling-bee";
+import CreativeCanvas from "./games/creative-canvas";
 import StudentWorksheetsView from "./student-worksheets-view";
 
 
@@ -64,6 +64,10 @@ const GamesContent = ({ studentClass, subject, userId }: { studentClass: string;
 
     if (!userId) return null;
 
+    if (isArtSubject(subject)) {
+        return <CreativeCanvas studentClass={studentClass} studentId={userId} subject={subject} />;
+    }
+
     if (isLanguageSubject(subject)) {
         return languageGame;
     }
@@ -80,7 +84,7 @@ const GamesContent = ({ studentClass, subject, userId }: { studentClass: string;
         return islamiatGame;
     }
 
-    return <PlaceholderContent icon={Gamepad2} title="Learning Games" description="Fun games for this subject will appear here soon!" />;
+    return <ScienceLabAdventure studentClass={studentClass} studentId={userId} subject={subject} />;
 }
 
 const QuizzesContent = ({ studentClass, subject, userId }: { studentClass: string; subject: string; userId: string }) => {

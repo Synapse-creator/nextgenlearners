@@ -2,24 +2,20 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { Star, Volume2, Sparkles, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { CloudIcon } from '@/components/icons';
 
 const gameLevels = {
-    PG: { words: ['A', 'B', 'C', 'D', 'E'] }, // single letter matching conceptually
-    Nursery: { words: ['CAT', 'DOG', 'SUN'] },
-    KG: { words: ['BIRD', 'FISH', 'FROG'] },
-    'Class 1': { words: ['APPLE', 'WATER', 'HOUSE'] },
-    'Class 2': { words: ['ORANGE', 'SCHOOL', 'PENCIL'] },
-    'Class 3': { words: ['ELEPHANT', 'COMPUTER', 'BEAUTIFUL'] },
+    PG: { topic: "Alphabet Phonics", words: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+    Nursery: { topic: "3-Letter CVC Words", words: ['CAT', 'DOG', 'SUN', 'BUS', 'HAT', 'PEN', 'BUG', 'CUP', 'FAN', 'PIG'] },
+    KG: { topic: "Animals & Nature Words", words: ['BIRD', 'FISH', 'FROG', 'DUCK', 'LION', 'STAR', 'MOON', 'BOOK', 'TREE', 'MILK'] },
+    'Class 1': { topic: "Vocabulary & Spelling", words: ['APPLE', 'WATER', 'HOUSE', 'CHAIR', 'PLANT', 'TRAIN', 'SMILE', 'GRASS', 'CLOUD', 'BREAD'] },
+    'Class 2': { topic: "Nouns & Action Words", words: ['ORANGE', 'SCHOOL', 'PENCIL', 'RABBIT', 'FLOWER', 'FRIEND', 'SUMMER', 'MONKEY', 'YELLOW', 'PLANET'] },
+    'Class 3': { topic: "Advanced Spelling Bee", words: ['ELEPHANT', 'COMPUTER', 'BEAUTIFUL', 'QUESTION', 'DINOSAUR', 'BUTTERFLY', 'EXPLORER', 'SUNSHINE', 'RAINBOW', 'TEACHER'] },
 };
 
-const colors = ['bg-red-400', 'bg-blue-400', 'bg-green-400', 'bg-yellow-400', 'bg-purple-400', 'bg-pink-400'];
+const colors = ['bg-[#FFD3B6]', 'bg-[#CAF0F8]', 'bg-[#A8E6CF]', 'bg-[#FFF9C4]', 'bg-[#d8e9bd]'];
 
 interface Balloon {
     id: string;
@@ -30,10 +26,10 @@ interface Balloon {
     color: string;
 }
 
-export default function SpellingBee({ studentClass, studentId }: { studentClass: string; studentId: string; subject: string }) {
+export default function SpellingBee({ studentClass }: { studentClass: string; studentId: string; subject: string }) {
     const { toast } = useToast();
     const gameAreaRef = useRef<HTMLDivElement>(null);
-    const level = gameLevels[studentClass as keyof typeof gameLevels] || gameLevels.PG;
+    const levelData = gameLevels[studentClass as keyof typeof gameLevels] || gameLevels.PG;
     
     const [targetWord, setTargetWord] = useState('');
     const [spelledWord, setSpelledWord] = useState('');
@@ -41,11 +37,19 @@ export default function SpellingBee({ studentClass, studentId }: { studentClass:
     const [score, setScore] = useState(0);
     const [gameState, setGameState] = useState<'playing' | 'correct'>('playing');
 
+    const speakWord = (text: string) => {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+        }
+    };
+
     const setupRound = useCallback(() => {
         if (!gameAreaRef.current) return;
         const width = gameAreaRef.current.getBoundingClientRect().width;
         
-        const randomWord = level.words[Math.floor(Math.random() * level.words.length)];
+        const randomWord = levelData.words[Math.floor(Math.random() * levelData.words.length)];
         setTargetWord(randomWord);
         setSpelledWord('');
         setGameState('playing');
@@ -58,124 +62,136 @@ export default function SpellingBee({ studentClass, studentId }: { studentClass:
         const newBalloons: Balloon[] = allLetters.map((char, index) => ({
             id: `balloon-${index}-${Date.now()}`,
             letter: char,
-            x: Math.random() * (width - 60),
-            delay: Math.random() * 2,
-            speed: 15 + Math.random() * 10,
-            color: colors[index % colors.length]
+            x: (index * (width / (allLetters.length + 1))) + 20,
+            delay: Math.random() * 0.5,
+            speed: 4 + Math.random() * 2,
+            color: colors[index % colors.length],
         }));
-        
+
         setBalloons(newBalloons);
-    }, [level.words]);
+    }, [levelData]);
 
     useEffect(() => {
-        const timeoutId = setTimeout(setupRound, 100);
-        return () => clearTimeout(timeoutId);
+        setupRound();
     }, [setupRound]);
 
-    const handlePop = (balloon: Balloon) => {
-        if (gameState !== 'playing') return;
+    const handleBalloonClick = (balloon: Balloon) => {
+        if (gameState === 'correct') return;
 
-        const nextLetterIndex = spelledWord.length;
-        if (balloon.letter === targetWord[nextLetterIndex]) {
+        const nextCharNeeded = targetWord[spelledWord.length];
+        
+        if (balloon.letter === nextCharNeeded) {
             const newSpelled = spelledWord + balloon.letter;
             setSpelledWord(newSpelled);
-            
-            // Remove popped balloon
             setBalloons(prev => prev.filter(b => b.id !== balloon.id));
 
             if (newSpelled === targetWord) {
                 setGameState('correct');
-                const newScore = score + 1;
-                setScore(newScore);
-                saveProgress(newScore);
-                setTimeout(setupRound, 3000);
+                setScore(prev => prev + 10);
+                speakWord(targetWord);
+                toast({
+                    title: "Word Spelled Correctly! 🐝✨",
+                    description: `Awesome job spelling ${targetWord}!`,
+                });
+                setTimeout(() => {
+                    setupRound();
+                }, 1200);
             }
         } else {
             toast({
                 variant: "destructive",
-                title: "Oops!",
-                description: `You need the letter ${targetWord[nextLetterIndex]} next.`,
+                title: "Try another letter!",
+                description: `Next letter needed: ${nextCharNeeded}`,
             });
         }
     };
 
-    const saveProgress = async (currentScore: number) => {
-        try {
-            await supabase.from('users').update({
-                game_progress_spelling_bee: currentScore,
-                game_progress_updated_at: new Date().toISOString(),
-            }).eq('uid', studentId);
-        } catch (error) {
-            console.error("Error saving game progress:", error);
-        }
-    };
-
     return (
-        <Card className="w-full h-[500px] relative overflow-hidden shadow-lg border-4 border-primary/20 bg-gradient-to-b from-sky-200 to-sky-400">
-            <CloudIcon className="absolute top-10 -left-10 w-48 h-48 text-white/50 animate-float" style={{ animationDuration: '10s' }} />
-            <CloudIcon className="absolute bottom-5 -right-12 w-64 h-64 text-white/60 animate-float" style={{ animationDuration: '12s', animationDelay: '2s' }} />
-
-            <CardContent className="p-4 h-full relative z-10 flex flex-col">
-                <div className="flex justify-between items-center z-20">
-                    <div className="bg-background/80 p-2 rounded-lg shadow-md backdrop-blur-sm flex flex-col">
-                        <h3 className="text-sm font-bold text-muted-foreground uppercase">Spell the word:</h3>
-                        <div className="flex gap-1 mt-1">
-                            {targetWord.split('').map((char, idx) => (
-                                <div key={idx} className="w-8 h-10 border-b-4 border-primary flex items-center justify-center text-2xl font-bold">
-                                    {spelledWord[idx] || ''}
-                                </div>
-                            ))}
+        <Card className="border border-[#A8E6CF]/30 shadow-lg rounded-2xl bg-white overflow-hidden">
+            <CardContent className="p-6">
+                {/* Header Info */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-6 p-4 bg-[#f8faf7] rounded-xl border border-[#bfc9c3]/30">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#A8E6CF]/40 flex items-center justify-center text-[#2c6956]">
+                            <BookOpen className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-lg text-[#2D3436] font-headline">
+                                Spelling Bee Arena ({studentClass})
+                            </h3>
+                            <span className="text-xs font-bold text-[#2c6956] bg-[#A8E6CF]/30 px-3 py-0.5 rounded-full inline-block">
+                                Topic: {levelData.topic}
+                            </span>
                         </div>
                     </div>
-                    <div className="bg-background/80 p-2 rounded-lg shadow-md flex items-center gap-2 backdrop-blur-sm">
-                        <Star className="text-yellow-400 fill-yellow-400" />
-                        <span className="text-xl font-bold">{score}</span>
+
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => speakWord(targetWord)}
+                            className="p-2 rounded-full bg-[#2c6956]/10 text-[#2c6956] hover:bg-[#2c6956]/20 transition-colors squishy-btn"
+                            title="Listen to Word"
+                        >
+                            <Volume2 className="w-5 h-5" />
+                        </button>
+                        <div className="flex items-center gap-2 bg-[#FFF9C4] px-4 py-1.5 rounded-full border border-[#795836]/20">
+                            <Star className="w-4 h-4 fill-[#795836] text-[#795836]" />
+                            <span className="font-bold text-sm text-[#795836]">Score: {score}</span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex-grow w-full relative overflow-hidden mt-4" ref={gameAreaRef}>
-                    <AnimatePresence>
-                        {balloons.map((balloon) => (
-                            <motion.div
-                                key={balloon.id}
-                                className="absolute flex flex-col items-center cursor-pointer"
-                                style={{ left: balloon.x, bottom: -100 }}
-                                initial={{ y: 0 }}
-                                animate={{ y: -700 }}
-                                exit={{ scale: 0, opacity: 0 }}
-                                transition={{ 
-                                    y: { duration: balloon.speed, delay: balloon.delay, repeat: Infinity, ease: "linear" },
-                                    scale: { duration: 0.2 },
-                                    opacity: { duration: 0.2 }
-                                }}
-                                onClick={() => handlePop(balloon)}
-                            >
-                                <div className={cn(
-                                    "w-16 h-20 rounded-[50%] flex items-center justify-center text-white font-bold text-3xl shadow-md border-b-4 border-r-4 border-black/20",
-                                    balloon.color
-                                )}>
-                                    {balloon.letter}
+                {/* Target Word Container */}
+                <div className="bg-[#f2f4f1] p-6 rounded-2xl border border-[#bfc9c3]/30 text-center mb-6">
+                    <span className="text-xs uppercase font-bold text-[#636E72] tracking-wider block mb-2">
+                        Pop Balloons To Spell The Word:
+                    </span>
+                    <div className="flex justify-center items-center gap-2">
+                        {targetWord.split('').map((char, index) => {
+                            const isFilled = index < spelledWord.length;
+                            return (
+                                <div
+                                    key={index}
+                                    className={`w-12 h-14 md:w-14 md:h-16 rounded-xl border-2 flex items-center justify-center text-2xl font-extrabold font-headline transition-all ${
+                                        isFilled
+                                            ? "bg-[#2c6956] text-white border-[#2c6956] shadow-md scale-105"
+                                            : "bg-white border-dashed border-[#bfc9c3] text-[#bfc9c3]"
+                                    }`}
+                                >
+                                    {isFilled ? spelledWord[index] : "_"}
                                 </div>
-                                {/* Balloon string */}
-                                <div className="w-[2px] h-12 bg-white/50 -mt-1" />
-                            </motion.div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Balloon Floating Arena */}
+                <div
+                    ref={gameAreaRef}
+                    className="relative w-full h-[360px] md:h-[400px] bg-gradient-to-b from-[#CAF0F8]/30 to-[#f8faf7] border-2 border-dashed border-[#bfc9c3]/40 rounded-2xl overflow-hidden"
+                >
+                    <AnimatePresence>
+                        {balloons.map(balloon => (
+                            <motion.button
+                                key={balloon.id}
+                                onClick={() => handleBalloonClick(balloon)}
+                                style={{ left: balloon.x }}
+                                className={`absolute w-16 h-20 md:w-20 md:h-24 rounded-full border-4 border-white shadow-md flex items-center justify-center text-2xl font-extrabold font-headline text-[#2D3436] squishy-btn cursor-pointer ${balloon.color}`}
+                                initial={{ y: 380, opacity: 0 }}
+                                animate={{
+                                    y: [360, -20],
+                                    opacity: 1
+                                }}
+                                transition={{
+                                    y: { duration: balloon.speed, repeat: Infinity, ease: "linear" },
+                                    opacity: { duration: 0.3 }
+                                }}
+                                exit={{ scale: 0, opacity: 0 }}
+                            >
+                                {balloon.letter}
+                            </motion.button>
                         ))}
                     </AnimatePresence>
                 </div>
-
-                <AnimatePresence>
-                    {gameState === 'correct' && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.5 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.5 }}
-                            className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none bg-black/20 backdrop-blur-sm"
-                        >
-                            <Image src="/games/win.gif" alt="Correct" width={300} height={300} unoptimized />
-                            <h2 className="text-5xl font-extrabold text-white drop-shadow-lg font-headline -mt-16">Great Spelling!</h2>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
             </CardContent>
         </Card>
     );

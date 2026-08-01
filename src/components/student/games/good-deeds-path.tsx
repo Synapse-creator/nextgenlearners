@@ -1,138 +1,179 @@
-
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
-import { Check, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight, HeartHandshake, Star, Sparkles, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
+interface GoodDeedsPathProps {
+    studentClass: string;
+    studentId: string;
+    subject: string;
+}
 
 const gameLevels = {
     PG: [
-        { scenario: "You see a friend fall down.", options: ["Help them up", "Laugh"], correct: 0, explanation: "Helping friends is kind!" },
-        { scenario: "Mom gives you a cookie.", options: ["Say 'Thank You'", "Grab it and run"], correct: 0, explanation: "It's nice to say thank you." }
+        { topic: "Kindness to Friends", scenario: "You see a friend fall down on the playground.", options: ["Help them up kindly 🤝", "Laugh at them ❌"], correct: 0, explanation: "Helping friends up with a smile is a wonderful good deed!" },
+        { topic: "Gratitude & Manners", scenario: "Your teacher gives you a nice sticker.", options: ["Say 'Thank You!' 😊", "Take it without saying anything ❌"], correct: 0, explanation: "Saying 'Thank You' shows politeness and good manners!" }
     ],
     Nursery: [
-        { scenario: "You want to play with a toy your friend has.", options: ["Take it", "Ask, 'Can I play?'"], correct: 1, explanation: "Asking to share is the right way to play." },
-        { scenario: "You accidentally spill some water.", options: ["Tell a grown-up", "Hide it"], correct: 0, explanation: "It's always best to tell the truth." }
+        { topic: "Sharing & Caring", scenario: "You want to play with a toy your classmate is holding.", options: ["Ask politely: 'May I share?' 🧸", "Snatch it away ❌"], correct: 0, explanation: "Asking politely to share makes playing fun for everyone!" },
+        { topic: "Truthfulness", scenario: "You accidentally spill a cup of water on the table.", options: ["Tell the truth to a grown-up 🧼", "Hide and pretend you didn't do it ❌"], correct: 0, explanation: "Honesty is always the best policy!" }
     ],
     KG: [
-        { scenario: "You see trash on the floor.", options: ["Leave it there", "Pick it up and put it in the bin"], correct: 1, explanation: "Keeping our space clean is a good deed." },
-        { scenario: "It's time to eat.", options: ["Start eating right away", "Say 'Bismillah' first"], correct: 1, explanation: "We say 'Bismillah' before we eat to thank Allah." }
+        { topic: "Cleanliness (Taharah)", scenario: "You see empty paper wrappers on the floor.", options: ["Pick them up and throw in the bin 🗑️", "Leave them on the floor ❌"], correct: 0, explanation: "Cleanliness is half of faith! Keeping surroundings clean is a great deed." },
+        { topic: "Bismillah", scenario: "You sit down at the dinner table to eat your food.", options: ["Say 'Bismillah' before taking a bite 🤲", "Start eating quickly without a word ❌"], correct: 0, explanation: "Saying 'Bismillah' brings blessings into our food!" }
     ],
     'Class 1': [
-        { scenario: "Your friend is sad because they lost their pencil.", options: ["Tell them it's okay", "Share one of your pencils"], correct: 1, explanation: "Sharing with those in need is a great act of kindness." },
-        { scenario: "Your parents ask you to clean your room.", options: ["Say 'Okay' and do it", "Pretend you didn't hear"], correct: 0, explanation: "Obeying and helping our parents is very important." }
+        { topic: "Helping Others", scenario: "Your classmate forgot their pencil for writing class.", options: ["Share your extra pencil with them ✏️", "Keep all pencils to yourself ❌"], correct: 0, explanation: "Sharing items with those in need is an act of charity and love!" },
+        { topic: "Respecting Parents", scenario: "Your parents ask you to clean your play area.", options: ["Say 'Yes' happily and help clean up 🧹", "Pretend you didn't hear ❌"], correct: 0, explanation: "Listening to and obeying parents earns immense blessings!" }
     ],
     'Class 2': [
-        { scenario: "You find a toy in the playground that isn't yours.", options: ["Keep it", "Give it to a teacher"], correct: 1, explanation: "Honesty means returning things that are not ours." },
-        { scenario: "Someone gives you a gift.", options: ["Say 'JazakAllah Khair'", "Just take it"], correct: 0, explanation: "We say 'JazakAllah Khair' to thank someone and pray for them." }
+        { topic: "Honesty & Integrity", scenario: "You find a lost water bottle on the playground.", options: ["Hand it over to your teacher 🏫", "Keep it for yourself ❌"], correct: 0, explanation: "Honesty means returning lost items to their rightful owner!" },
+        { topic: "JazakAllah Khair", scenario: "Someone helps you pick up your fallen books.", options: ["Say 'JazakAllah Khair' (May Allah reward you!) 💖", "Just walk away ❌"], correct: 0, explanation: "Saying 'JazakAllah Khair' prays for goodness and reward for the helper!" }
     ],
     'Class 3': [
-        { scenario: "You see an elderly person who needs help crossing the street.", options: ["Wait for someone else to help", "Ask a grown-up to help them"], correct: 1, explanation: "Respecting and helping our elders is a very good deed." },
-        { scenario: "Your friend tells you a secret.", options: ["Tell your other friends", "Keep the secret safe"], correct: 1, explanation: "A trustworthy person keeps the secrets of others." }
+        { topic: "Civic Duty & Elders", scenario: "An elderly person is struggling to carry a heavy bag.", options: ["Offer to help carry the bag 🛍️", "Ignore and walk past ❌"], correct: 0, explanation: "Helping elderly people and showing respect is a noble duty!" },
+        { topic: "Keeping Promises", scenario: "Your friend tells you a secret in trust.", options: ["Keep the secret safe and locked 🔐", "Tell everyone at school ❌"], correct: 0, explanation: "Trustworthiness (Amanah) means keeping promises and secrets safe!" }
     ]
 };
 
-export default function GoodDeedsPath({ studentClass }: { studentClass: string; studentId: string; subject: string }) {
+export default function GoodDeedsPath({ studentClass }: GoodDeedsPathProps) {
+    const { toast } = useToast();
     const questions = gameLevels[studentClass as keyof typeof gameLevels] || gameLevels.PG;
     const [currentStep, setCurrentStep] = useState(0);
-    const [position, setPosition] = useState(0);
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+    const [score, setScore] = useState(0);
 
-    const question = questions[currentStep];
+    const question = questions[currentStep % questions.length];
 
     const handleOptionClick = (index: number) => {
         if (selectedOption !== null) return;
         setSelectedOption(index);
+        
         if (index === question.correct) {
             setIsCorrect(true);
+            setScore(prev => prev + 10);
+            toast({
+                title: "Noble Good Deed! 🌟",
+                description: question.explanation,
+            });
         } else {
             setIsCorrect(false);
+            toast({
+                variant: "destructive",
+                title: "Think about the good deed!",
+                description: "Choose the kind and honest choice!",
+            });
         }
     };
 
     const handleNext = () => {
-        if (isCorrect) {
-            setPosition(p => Math.min(p + 1, questions.length));
-        }
-        if (currentStep < questions.length - 1) {
-            setCurrentStep(s => s + 1);
-            setSelectedOption(null);
-            setIsCorrect(null);
-        }
+        setSelectedOption(null);
+        setIsCorrect(null);
+        setCurrentStep(prev => prev + 1);
     };
 
-    const isFinished = currentStep === questions.length - 1 && selectedOption !== null;
-
     return (
-        <Card className="w-full h-auto sm:h-[550px] relative overflow-hidden shadow-lg border-4 border-primary/20 bg-blue-50 p-4 flex flex-col justify-between">
-            <div>
-                <h2 className="text-xl sm:text-2xl font-bold font-headline text-blue-800 text-center">The Path of Good Deeds</h2>
-                {/* Game Board */}
-                <div className="w-full h-24 bg-green-200 rounded-lg mt-4 p-2 flex items-center relative">
-                    <div className="absolute top-0 left-0 w-full h-full bg-[url('/games/path.svg')] bg-repeat-x opacity-20"></div>
-                     <motion.div
-                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary flex items-center justify-center"
-                        animate={{ x: `${(position / questions.length) * 85}%` }}
-                        transition={{ type: 'spring', stiffness: 100 }}
-                        style={{ position: 'relative', left: '5%'}}
-                     >
-                         <Image src="/avatars/avatar1.gif" alt="Player" width={60} height={60} className="rounded-full" />
-                     </motion.div>
-                     <div className="absolute w-12 h-12 sm:w-16 sm:h-16 right-[5%] flex items-center justify-center">
-                        <Image src="/games/mosque.png" alt="Goal" width={64} height={64} />
-                     </div>
-                </div>
-            </div>
-
-            <AnimatePresence mode="wait">
-                <motion.div
-                    key={currentStep}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
-                    className="bg-white/80 rounded-lg shadow-md p-4 sm:p-6 text-center my-4"
-                >
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-4">{question.scenario}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
-                        {question.options.map((option, index) => (
-                            <Button
-                                key={index}
-                                variant={selectedOption === index ? (isCorrect ? 'default' : 'destructive') : 'outline'}
-                                onClick={() => handleOptionClick(index)}
-                                className={cn("h-auto py-3 text-sm sm:text-base whitespace-normal", selectedOption !== null && 'cursor-not-allowed')}
-                            >
-                                {option}
-                            </Button>
-                        ))}
+        <Card className="border border-[#A8E6CF]/30 shadow-lg rounded-2xl bg-white overflow-hidden">
+            <CardHeader className="bg-[#f8faf7] border-b border-[#bfc9c3]/30 pb-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle className="text-xl md:text-2xl font-bold font-headline text-[#2D3436] flex items-center gap-2">
+                            <HeartHandshake className="w-6 h-6 text-[#2c6956]" />
+                            Good Deeds Quest ({studentClass})
+                        </CardTitle>
+                        <span className="text-xs font-bold text-[#2c6956] bg-[#A8E6CF]/30 px-3 py-0.5 rounded-full inline-block mt-1">
+                            Topic: {question.topic}
+                        </span>
                     </div>
-                </motion.div>
-            </AnimatePresence>
-            
-            <AnimatePresence>
-                {selectedOption !== null && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className={`mt-4 p-4 rounded-lg text-center font-semibold ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
-                    >
-                        <p>{isCorrect ? "That's a wonderful choice!" : "Let's try to make a better choice."}</p>
-                        <p className="text-sm font-normal">{question.explanation}</p>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-            
-             <div className="text-center mt-4">
-                <Button onClick={handleNext} disabled={selectedOption === null} className="w-full sm:w-1/2">
-                    {isFinished ? 'Finish' : 'Next'} <ArrowRight className="ml-2" />
-                </Button>
-            </div>
+
+                    <div className="flex items-center gap-2 bg-[#FFF9C4] px-4 py-1.5 rounded-full border border-[#795836]/20">
+                        <Star className="w-4 h-4 fill-[#795836] text-[#795836]" />
+                        <span className="font-bold text-sm text-[#795836]">Deeds Points: {score}</span>
+                    </div>
+                </div>
+            </CardHeader>
+
+            <CardContent className="p-6 space-y-6">
+                {/* Scenario Header */}
+                <div className="bg-[#f2f4f1] p-6 rounded-2xl border border-[#bfc9c3]/30 text-center">
+                    <span className="text-xs font-bold text-[#636E72] uppercase tracking-wider block mb-2">
+                        Scenario #{currentStep + 1}
+                    </span>
+                    <h3 className="text-xl md:text-2xl font-bold text-[#2D3436] font-headline leading-relaxed">
+                        "{question.scenario}"
+                    </h3>
+                    <p className="text-xs text-[#2c6956] font-bold mt-2">
+                        What is the best good deed to do?
+                    </p>
+                </div>
+
+                {/* Scenario Options */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {question.options.map((opt, idx) => {
+                        const isSelected = selectedOption === idx;
+                        let btnClass = "bg-white border-[#bfc9c3]/40 text-[#2D3436] hover:bg-[#f8faf7]";
+
+                        if (selectedOption !== null) {
+                            if (idx === question.correct) {
+                                btnClass = "bg-[#A8E6CF]/40 border-[#2c6956] text-[#2c6956] font-extrabold shadow-md";
+                            } else if (isSelected) {
+                                btnClass = "bg-[#ffdad6] border-[#ba1a1a] text-[#ba1a1a]";
+                            }
+                        }
+
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => handleOptionClick(idx)}
+                                disabled={selectedOption !== null}
+                                className={cn(
+                                    "p-6 rounded-2xl border-2 text-left transition-all duration-200 squishy-btn flex items-center justify-between gap-3 text-base font-bold",
+                                    btnClass
+                                )}
+                            >
+                                <span>{opt}</span>
+                                {selectedOption !== null && idx === question.correct && (
+                                    <Check className="w-5 h-5 text-[#2c6956]" />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Moral Lesson Feedback */}
+                <AnimatePresence>
+                    {selectedOption !== null && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0 }}
+                            className="bg-[#FFF9C4]/40 p-5 rounded-2xl border border-[#795836]/20 space-y-3"
+                        >
+                            <div className="flex items-center gap-2 text-[#795836] font-bold text-sm">
+                                <Sparkles className="w-5 h-5" />
+                                Moral Lesson & Virtue:
+                            </div>
+                            <p className="text-sm text-[#2D3436] font-body leading-relaxed">
+                                {question.explanation}
+                            </p>
+                            <div className="flex justify-end pt-2">
+                                <Button
+                                    onClick={handleNext}
+                                    className="bg-[#2c6956] hover:bg-[#1e4b3d] text-white font-bold rounded-xl px-6 squishy-btn"
+                                >
+                                    Next Good Deed <ArrowRight className="w-4 h-4 ml-2" />
+                                </Button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </CardContent>
         </Card>
     );
 }

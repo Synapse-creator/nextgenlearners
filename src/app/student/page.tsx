@@ -2,53 +2,31 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
 import DashboardView from '@/components/dashboard/dashboard-view';
 import LibraryView from '@/components/dashboard/library-view';
 import CalendarView from '@/components/dashboard/calendar-view';
-import ReportView from '@/components/dashboard/report-view';
 import StudentSubjectsView from '@/components/student/subjects-view';
 import SyllabusView from '@/components/student/syllabus-view';
 import ReadingBuddyView from '@/components/student/ai/reading-buddy';
 import UserGuideView from '@/components/student/user-guide-view';
-import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { BackpackIcon, BookIcon, HomeIcon, CalendarIcon, VideoIcon, LogOutIcon, BookCopy, MicIcon, BookUser } from '@/components/icons';
-import DashboardHeader from '@/components/dashboard/dashboard-header';
+import SettingsModal from '@/components/dashboard/settings-modal';
+import MiniStoryGenerator from '@/components/student/ai/mini-story-generator';
+import RhymeFinder from '@/components/student/ai/rhyme-finder';
+import SongGenerator from '@/components/student/ai/song-generator';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
+import { BackpackIcon } from '@/components/icons';
 
-type View = 'dashboard' | 'subjects' | 'library' | 'calendar' | 'report' | 'saved_classes' | 'syllabus' | 'reading_buddy' | 'user_guide';
+type View = 'dashboard' | 'subjects' | 'library' | 'calendar' | 'syllabus' | 'reading_buddy' | 'user_guide';
 
 interface UserData {
-    name?: string;
-    parentName?: string;
-    class?: string;
-    email?: string;
+  name?: string;
+  parentName?: string;
+  class?: string;
+  email?: string;
 }
-
-const navItems: { id: View; label: string; icon: React.ElementType }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: HomeIcon },
-  { id: 'subjects', label: 'Subjects', icon: BackpackIcon },
-  { id: 'syllabus', label: 'Syllabus', icon: BookCopy },
-  { id: 'reading_buddy', label: 'Reading Buddy', icon: MicIcon },
-  { id: 'library', label: 'E-Library', icon: BookIcon },
-  { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
-  { id: 'saved_classes', label: 'Saved Classes', icon: VideoIcon },
-  { id: 'user_guide', label: 'User Guide', icon: BookUser },
-];
-
-const ComingSoon = ({ title }: { title: string }) => (
-  <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-card rounded-xl shadow-sm">
-    <div className="bg-primary/20 p-4 rounded-full mb-4">
-      <BackpackIcon className="w-12 h-12 text-primary-foreground" />
-    </div>
-    <h2 className="text-2xl font-bold font-headline mb-2">{title}</h2>
-    <p className="text-muted-foreground">This learning treasure is still being polished. Check back soon!</p>
-  </div>
-);
 
 export default function StudentDashboardPage() {
   const [view, setView] = useState<View>('dashboard');
@@ -57,6 +35,8 @@ export default function StudentDashboardPage() {
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeAiTool, setActiveAiTool] = useState<'song' | 'story' | 'rhyme' | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -82,6 +62,12 @@ export default function StudentDashboardPage() {
           class: userProfile.class_name || userProfile.class,
           email: currentUser.email || userProfile.email,
         });
+      } else {
+        setUserData({
+          name: currentUser.user_metadata?.name || 'Ahmad Dawood',
+          class: 'Class 3',
+          email: currentUser.email || 'ahmad@nextgen.edu',
+        });
       }
     };
 
@@ -97,17 +83,24 @@ export default function StudentDashboardPage() {
       toast({ variant: "destructive", title: "Logout Failed", description: "Something went wrong." });
     }
   };
-  
-  const handleSelectSubject = (subject: string) => {
+
+  const handleSelectSubject = (subject: string | null) => {
     setView('subjects');
     setActiveSubject(subject);
   };
-  
+
   const handleViewChange = (newView: View) => {
     setView(newView);
     if (newView !== 'subjects') {
       setActiveSubject(null);
     }
+  };
+
+  const handleNotificationClick = () => {
+    toast({
+      title: "Notifications 🔔",
+      description: "You are all caught up! No new notifications today.",
+    });
   };
 
   const renderView = () => {
@@ -124,8 +117,6 @@ export default function StudentDashboardPage() {
         return <LibraryView />;
       case 'calendar':
         return <CalendarView />;
-      case 'saved_classes':
-        return <ComingSoon title="Saved Classes" />;
       case 'user_guide':
         return <UserGuideView />;
       default:
@@ -133,55 +124,204 @@ export default function StudentDashboardPage() {
     }
   };
 
+  const displayName = userData?.name || "Ahmad Dawood";
+  const displayClass = userData?.class ? `Level 12 Explorer (${userData.class})` : "Level 12 Explorer";
+
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <Sidebar className="border-r border-sidebar-border bg-sidebar">
-          <SidebarHeader className="p-4 flex items-center justify-between">
-             <Image src="/logo.png" alt="NextGen Learners Logo" width={140} height={35} priority />
-          </SidebarHeader>
-          <SidebarContent className="p-2">
-            <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    onClick={() => handleViewChange(item.id)}
-                    isActive={view === item.id}
-                    className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground rounded-lg"
-                  >
-                    <item.icon className="mr-2 h-4 w-4" />
-                    {item.label}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarContent>
-          <SidebarFooter className="p-4">
-             <div className="flex items-center gap-3 mb-4">
-                <Avatar>
-                    <AvatarFallback>{userData?.name?.[0]?.toUpperCase() || 'S'}</AvatarFallback>
-                </Avatar>
-                <div className="overflow-hidden">
-                    <p className="text-sm font-semibold truncate text-sidebar-foreground">{userData?.name || "Student"}</p>
-                    <p className="text-xs text-muted-foreground truncate">{userData?.email || userData?.class}</p>
-                </div>
-             </div>
-             <SidebarMenuButton onClick={handleLogout} className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg">
-                <LogOutIcon className="mr-2 h-4 w-4" />
-                Logout
-             </SidebarMenuButton>
-          </SidebarFooter>
-        </Sidebar>
-        <SidebarInset className="flex-1 flex flex-col min-w-0">
-          <div className="p-4 md:p-8 space-y-6">
-            <DashboardHeader />
-            <Separator />
-            <main>
-              {renderView()}
-            </main>
+    <div className="bg-[#f8faf7] text-[#191c1b] min-h-screen flex font-headline relative overflow-x-hidden">
+      {/* Sidebar Navigation */}
+      <aside className="fixed left-0 top-0 h-full w-64 bg-[#f2f4f1] flex flex-col py-8 z-40 rounded-r-2xl shadow-[40px_0_40px_rgba(44,105,86,0.05)] border-r border-[#A8E6CF]/20">
+        <div className="px-6 mb-8">
+          <h1 className="font-bold text-2xl text-[#2c6956] font-headline tracking-tight">NextGen</h1>
+          <div className="mt-6 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#FFD3B6] flex items-center justify-center overflow-hidden border-2 border-white shadow-sm font-bold text-[#795836]">
+              {displayName[0]?.toUpperCase() || 'A'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-[#2c6956] truncate">{displayName}</p>
+              <p className="text-[10px] text-[#404945] truncate">{displayClass}</p>
+            </div>
           </div>
-        </SidebarInset>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto custom-scrollbar px-3 space-y-1">
+          <button
+            onClick={() => handleViewChange('dashboard')}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 squishy-btn text-left",
+              view === 'dashboard'
+                ? "bg-[#2c6956] text-white shadow-md shadow-[#2c6956]/20"
+                : "text-[#404945] hover:bg-[#A8E6CF]/20"
+            )}
+          >
+            <span className="material-symbols-outlined text-xl">dashboard</span>
+            <span>Dashboard</span>
+          </button>
+
+          <button
+            onClick={() => handleViewChange('subjects')}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 squishy-btn text-left",
+              view === 'subjects'
+                ? "bg-[#2c6956] text-white shadow-md shadow-[#2c6956]/20"
+                : "text-[#404945] hover:bg-[#A8E6CF]/20"
+            )}
+          >
+            <span className="material-symbols-outlined text-xl">auto_stories</span>
+            <span>Subjects</span>
+          </button>
+
+          <button
+            onClick={() => handleViewChange('syllabus')}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 squishy-btn text-left",
+              view === 'syllabus'
+                ? "bg-[#2c6956] text-white shadow-md shadow-[#2c6956]/20"
+                : "text-[#404945] hover:bg-[#A8E6CF]/20"
+            )}
+          >
+            <span className="material-symbols-outlined text-xl">assignment</span>
+            <span>Syllabus</span>
+          </button>
+
+          <button
+            onClick={() => handleViewChange('reading_buddy')}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 squishy-btn text-left",
+              view === 'reading_buddy'
+                ? "bg-[#2c6956] text-white shadow-md shadow-[#2c6956]/20"
+                : "text-[#404945] hover:bg-[#A8E6CF]/20"
+            )}
+          >
+            <span className="material-symbols-outlined text-xl">face</span>
+            <span>Reading Buddy</span>
+          </button>
+
+          <button
+            onClick={() => handleViewChange('library')}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 squishy-btn text-left",
+              view === 'library'
+                ? "bg-[#2c6956] text-white shadow-md shadow-[#2c6956]/20"
+                : "text-[#404945] hover:bg-[#A8E6CF]/20"
+            )}
+          >
+            <span className="material-symbols-outlined text-xl">library_books</span>
+            <span>E-Library</span>
+          </button>
+
+          {/* Quick Access AI Tools Section */}
+          <div className="mt-8 pt-6 border-t border-[#bfc9c3]/30 px-1">
+            <p className="text-[10px] font-bold text-[#795836] uppercase tracking-wider mb-4 px-3">
+              Quick AI Tools
+            </p>
+            <div className="space-y-1">
+              <button
+                onClick={() => setActiveAiTool('song')}
+                className="w-full flex items-center gap-3 text-[#404945] hover:bg-[#CAF0F8]/40 px-4 py-3 rounded-xl transition-all group squishy-btn text-left"
+              >
+                <span className="material-symbols-outlined text-[#2c6956] group-hover:scale-110 transition-transform">
+                  music_note
+                </span>
+                <span className="font-bold text-sm">Sing My Name</span>
+              </button>
+
+              <button
+                onClick={() => setActiveAiTool('story')}
+                className="w-full flex items-center gap-3 text-[#404945] hover:bg-[#A8E6CF]/30 px-4 py-3 rounded-xl transition-all group squishy-btn text-left"
+              >
+                <span
+                  className="material-symbols-outlined text-[#2c6956] group-hover:scale-110 transition-transform"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  auto_awesome
+                </span>
+                <span className="font-bold text-sm">Story Gen</span>
+              </button>
+
+              <button
+                onClick={() => setActiveAiTool('rhyme')}
+                className="w-full flex items-center gap-3 text-[#404945] hover:bg-[#FFD3B6]/40 px-4 py-3 rounded-xl transition-all group squishy-btn text-left"
+              >
+                <span className="material-symbols-outlined text-[#795836] group-hover:scale-110 transition-transform">
+                  lyrics
+                </span>
+                <span className="font-bold text-sm">Rhyme Finder</span>
+              </button>
+            </div>
+          </div>
+        </nav>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="ml-64 flex-1 h-screen overflow-y-auto px-6 md:px-10 py-8 custom-scrollbar relative z-10">
+        {/* Top Greeting Bar & Actions */}
+        <header className="flex justify-between items-start mb-10 gap-4">
+          <div>
+            <h2 className="text-3xl md:text-4xl font-bold text-[#2D3436] font-headline">
+              Welcome back, {displayName}! 👋
+            </h2>
+            <p className="text-sm md:text-base text-[#636E72] mt-1 font-body">
+              You're doing amazing today. Ready for a new adventure?
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleNotificationClick}
+              className="w-12 h-12 bg-white shadow-sm border border-[#bfc9c3]/30 rounded-full text-[#404945] flex items-center justify-center hover:bg-[#A8E6CF]/20 transition-colors squishy-btn"
+              title="Notifications"
+            >
+              <span className="material-symbols-outlined text-xl">notifications</span>
+            </button>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="w-12 h-12 bg-white shadow-sm border border-[#bfc9c3]/30 rounded-full text-[#404945] flex items-center justify-center hover:bg-[#A8E6CF]/20 transition-colors squishy-btn"
+              title="Settings"
+            >
+              <span className="material-symbols-outlined text-xl">settings</span>
+            </button>
+          </div>
+        </header>
+
+        {/* View Content */}
+        {renderView()}
+      </main>
+
+      {/* Background Floating Atmosphere Elements */}
+      <div className="fixed pointer-events-none inset-0 z-0 opacity-[0.03]">
+        <span className="material-symbols-outlined absolute top-20 right-10 text-9xl text-[#2c6956]">forest</span>
+        <span className="material-symbols-outlined absolute bottom-40 right-80 text-8xl text-[#795836]">potted_plant</span>
+        <span className="material-symbols-outlined absolute top-1/2 left-72 text-7xl text-[#2c6956]">eco</span>
+        <span className="material-symbols-outlined absolute bottom-20 left-10 text-[200px] text-[#2c6956]">landscape</span>
       </div>
-    </SidebarProvider>
+
+      {/* Settings Modal (Password Reset & Logout) */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        userData={userData}
+        onLogout={handleLogout}
+      />
+
+      {/* AI Tool Dialog Modals */}
+      <Dialog open={activeAiTool !== null} onOpenChange={(open) => !open && setActiveAiTool(null)}>
+        <DialogContent className="max-w-xl rounded-2xl p-6 bg-white border border-[#A8E6CF]/40 shadow-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>AI Assistant Tool</DialogTitle>
+            <DialogDescription>Interactive AI Tool for students</DialogDescription>
+          </DialogHeader>
+
+          {activeAiTool === 'song' && (
+            <SongGenerator studentName={displayName} />
+          )}
+          {activeAiTool === 'story' && (
+            <MiniStoryGenerator />
+          )}
+          {activeAiTool === 'rhyme' && (
+            <RhymeFinder />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
