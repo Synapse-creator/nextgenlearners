@@ -5,8 +5,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Speaker, Volume2, Star } from 'lucide-react';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { isUrdu } from '@/lib/subjects';
 import { cn } from '@/lib/utils';
@@ -147,14 +146,11 @@ export default function LetterWordSplash({ studentClass, studentId, subject }: {
     };
     
     const saveProgress = async (currentScore: number) => {
-        const userDocRef = doc(db, 'users', studentId);
         try {
-            await updateDoc(userDocRef, {
-                'gameProgress.letterSplash': {
-                    score: currentScore,
-                    lastPlayed: serverTimestamp()
-                }
-            });
+            await supabase.from('users').update({
+                game_progress_letter_splash: currentScore,
+                game_progress_updated_at: new Date().toISOString(),
+            }).eq('uid', studentId);
         } catch (error) {
             console.error("Error saving game progress:", error);
         }

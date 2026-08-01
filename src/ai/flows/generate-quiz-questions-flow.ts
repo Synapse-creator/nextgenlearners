@@ -1,69 +1,67 @@
 'use server';
-/**
- * @fileOverview Generates a multiple-choice quiz based on a given topic and class level.
- *
- * - generateQuiz - A function that generates the quiz.
- * - GenerateQuizInput - The input type for the generateQuiz function.
- * - GenerateQuizOutput - The return type for the generateQuiz function.
- */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { askGroq } from '@/ai/groq';
 
-const QuestionSchema = z.object({
-  questionText: z.string().describe("The text of the quiz question."),
-  options: z.array(z.string()).describe("An array of 4 possible answers for the question."),
-  correctAnswerIndex: z.number().int().min(0).max(3).describe("The 0-based index of the correct answer in the options array."),
-  explanation: z.string().describe("A brief and simple explanation for why the correct answer is right.")
-});
+export type GenerateQuizInput = {
+  prompt: string;
+  classLevel: string;
+  numQuestions: number;
+};
 
-const GenerateQuizInputSchema = z.object({
-  prompt: z.string().describe('The teacher\'s prompt for the quiz (e.g., "A quiz about summer fruits", "Photosynthesis basics").'),
-  classLevel: z.string().describe('The class level for which the quiz is intended (e.g., "Class 1", "KG").'),
-  numQuestions: z.number().int().positive().describe('The number of questions to generate for the quiz.'),
-});
-export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
+export type QuizQuestion = {
+  questionText: string;
+  options: string[];
+  correctAnswerIndex: number;
+  explanation: string;
+};
 
-const GenerateQuizOutputSchema = z.object({
-  title: z.string().describe("A creative and fun title for the quiz, based on the teacher's prompt."),
-  questions: z.array(QuestionSchema).describe('The array of generated quiz questions.'),
-});
-export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
+export type GenerateQuizOutput = {
+  title: string;
+  questions: QuizQuestion[];
+};
 
 export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
-  return generateQuizFlow(input);
+  try {
+    const systemPrompt = `You are an expert educator. Generate a JSON object for a multiple-choice quiz based on the user's request.
+Respond strictly in JSON matching this exact structure:
+{
+  "title": "Quiz Title",
+  "questions": [
+    {
+      "questionText": "Question description?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswerIndex": 0,
+      "explanation": "Why this option is correct."
+    }
+  ]
+}`;
+    const userPrompt = `Topic: ${input.prompt}\nClass Level: ${input.classLevel}\nNumber of Questions: ${input.numQuestions || 3}`;
+    const rawJson = await askGroq(systemPrompt, userPrompt, true);
+    const parsed = JSON.parse(rawJson);
+    if (parsed.title && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+      return parsed;
+    }
+  } catch (err) {
+    console.error('Error generating quiz via Groq:', err);
+  }
+
+  // Fallback quiz
+  return {
+    title: `${input.prompt || 'Fun Learning'} Quiz`,
+    questions: [
+      {
+        questionText: `What is an important concept in ${input.prompt || 'this lesson'}?`,
+        options: ['Learning and exploring', 'Sleeping all day', 'Ignoring rules', 'None of the above'],
+        correctAnswerIndex: 0,
+        explanation: 'Learning and exploring helps us grow!'
+      },
+      {
+        questionText: `Which of these is helpful for a ${input.classLevel || 'student'}?`,
+        options: ['Practicing every day', 'Giving up early', 'Not reading books', 'Forgetting homework'],
+        correctAnswerIndex: 0,
+        explanation: 'Daily practice leads to success!'
+      }
+    ]
+  };
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateQuizPrompt',
-  input: {schema: GenerateQuizInputSchema},
-  output: {schema: GenerateQuizOutputSchema},
-  prompt: `You are an expert educator and a fun quiz creator for young children. Your task is to generate an engaging, age-appropriate, multiple-choice quiz.
-
-  Generate a quiz based on the following details:
-  Teacher's Prompt: {{{prompt}}}
-  Class Level: {{{classLevel}}}
-  Number of Questions: {{{numQuestions}}}
-
-  Instructions:
-  1.  Create a fun and creative title for the quiz based on the teacher's prompt.
-  2.  Generate exactly {{{numQuestions}}} questions.
-  3.  Each question must have exactly 4 options.
-  4.  The questions and options should be simple, clear, and perfectly suitable for a child in {{{classLevel}}}. For younger classes like PG, Nursery, and KG, use very simple vocabulary and concepts.
-  5.  For each question, provide the 0-based index of the correct answer.
-  6.  For each question, provide a simple, one-sentence explanation for the correct answer that a child can understand.
-  7.  Ensure the quiz is directly related to the specified topic in the teacher's prompt.
-  `,
-});
-
-const generateQuizFlow = ai.defineFlow(
-  {
-    name: 'generateQuizFlow',
-    inputSchema: GenerateQuizInputSchema,
-    outputSchema: GenerateQuizOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);

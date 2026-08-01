@@ -7,9 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { ArrowLeft, Download, FileText, Gamepad2, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth, db } from "@/lib/firebase";
-import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { subjectsByClass, getIcon, isUrdu, isLanguageSubject, isMathSubject, isArtSubject, isGkScienceSubject, isIslamiatSubject } from "@/lib/subjects";
 import * as Icons from "@/components/icons";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,35 +34,28 @@ interface Quiz {
     title: string;
     questions: any[];
     allowRetake?: boolean;
-    createdAt: {
-        seconds: number;
-        nanoseconds: number;
-    };
+    createdAt: string;
 }
 
-const GamesContent = ({ studentClass, subject }: { studentClass: string; subject: string }) => {
-    const [user] = useAuthState(auth);
-
-    // Memoize the random component choice to prevent re-rendering on every state change
+const GamesContent = ({ studentClass, subject, userId }: { studentClass: string; subject: string; userId: string }) => {
     const islamiatGame = React.useMemo(() => {
         const games = [GoodDeedsPath, GoodMannersMaze];
         const RandomGame = games[Math.floor(Math.random() * games.length)];
-        return <RandomGame studentClass={studentClass} studentId={user?.uid || ""} subject={subject} />;
-    }, [studentClass, subject, user]);
+        return <RandomGame studentClass={studentClass} studentId={userId} subject={subject} />;
+    }, [studentClass, subject, userId]);
 
-
-    if (!user) return null;
+    if (!userId) return null;
 
     if (isLanguageSubject(subject)) {
-        return <LetterWordSplash studentClass={studentClass} studentId={user.uid} subject={subject} />;
+        return <LetterWordSplash studentClass={studentClass} studentId={userId} subject={subject} />;
     }
     
     if (isMathSubject(subject)) {
-        return <NumberBubblePop studentClass={studentClass} studentId={user.uid} subject={subject} />;
+        return <NumberBubblePop studentClass={studentClass} studentId={userId} subject={subject} />;
     }
 
     if (isGkScienceSubject(subject)) {
-        return <ScienceLabAdventure studentClass={studentClass} studentId={user.uid} subject={subject} />;
+        return <ScienceLabAdventure studentClass={studentClass} studentId={userId} subject={subject} />;
     }
     
     if (isIslamiatSubject(subject)) {
@@ -74,50 +65,52 @@ const GamesContent = ({ studentClass, subject }: { studentClass: string; subject
     return <PlaceholderContent icon={Gamepad2} title="Learning Games" description="Fun games for this subject will appear here soon!" />;
 }
 
-const QuizzesContent = ({ studentClass, subject }: { studentClass: string; subject: string }) => {
-    const [user] = useAuthState(auth);
+const QuizzesContent = ({ studentClass, subject, userId }: { studentClass: string; subject: string; userId: string }) => {
     const [quizzes, setQuizzes] = useState<Quiz[]>([]);
     const [quizResults, setQuizResults] = useState<{[quizId: string]: QuizResult}>({});
     const [loading, setLoading] = useState(true);
     const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
 
     useEffect(() => {
-        const q = query(
-            collection(db, "quizzes"),
-            where("class", "==", studentClass),
-            where("subject", "==", subject)
-        );
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedQuizzes: Quiz[] = [];
-            snapshot.forEach(doc => {
-                fetchedQuizzes.push({ id: doc.id, ...doc.data() } as Quiz);
-            });
-            setQuizzes(fetchedQuizzes.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds));
-            setLoading(false);
-        }, (error) => {
-            console.error(error);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
+        const fetchQuizzes = async () => {
+            try {
+                const { data } = await supabase
+                    .from('quizzes')
+                    .select('*')
+                    .eq('class_name', studentClass)
+                    .eq('subject', subject)
+                    .order('created_at', { ascending: false });
+                setQuizzes((data || []).map((q: any) => ({ ...q, createdAt: q.created_at })));
+            } catch (err) {
+                console.warn('Error fetching quizzes:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchQuizzes();
     }, [studentClass, subject]);
 
     useEffect(() => {
-        if (!user) return;
-        const resultsQuery = query(collection(db, "quizResults"), where("studentId", "==", user.uid));
-        const unsubscribeResults = onSnapshot(resultsQuery, (snapshot) => {
-            const results: {[quizId: string]: QuizResult} = {};
-            snapshot.forEach(doc => {
-                const data = doc.data() as QuizResult;
-                 // If there are multiple results for the same quiz, keep the highest score
-                if (!results[data.quizId] || data.score > results[data.quizId].score) {
-                    results[data.quizId] = data;
-                }
-            });
-            setQuizResults(results);
-        });
-        return () => unsubscribeResults();
-    }, [user]);
+        if (!userId) return;
+        const fetchResults = async () => {
+            try {
+                const { data } = await supabase
+                    .from('quiz_results')
+                    .select('*')
+                    .eq('student_id', userId);
+                const results: {[quizId: string]: QuizResult} = {};
+                (data || []).forEach((r: any) => {
+                    if (!results[r.quiz_id] || r.score > results[r.quiz_id].score) {
+                        results[r.quiz_id] = { quizId: r.quiz_id, studentId: r.student_id, score: r.score, total: r.total_questions, completedAt: r.completed_at };
+                    }
+                });
+                setQuizResults(results);
+            } catch (err) {
+                console.warn('Error fetching quiz results:', err);
+            }
+        };
+        fetchResults();
+    }, [userId]);
 
     if (loading) {
         return (
@@ -145,7 +138,7 @@ const QuizzesContent = ({ studentClass, subject }: { studentClass: string; subje
                                 <div>
                                     <p className="font-medium">{quiz.title}</p>
                                     <p className="text-xs text-muted-foreground">
-                                        Created on {format(new Date(quiz.createdAt.seconds * 1000), 'PPP')}
+                                        Created on {format(new Date(quiz.createdAt), 'PPP')}
                                     </p>
                                 </div>
                             </div>
@@ -172,10 +165,10 @@ const QuizzesContent = ({ studentClass, subject }: { studentClass: string; subje
                     )
                 })}
             </ul>
-            {selectedQuiz && user && (
+            {selectedQuiz && userId && (
                 <QuizPlayer
                     quiz={selectedQuiz}
-                    studentId={user.uid}
+                    studentId={userId}
                     onClose={() => setSelectedQuiz(null)}
                 />
             )}
@@ -194,25 +187,27 @@ const PlaceholderContent = ({ icon: Icon, title, description }: { icon: React.El
 )
 
 export default function StudentSubjectsView({ selectedSubject, setSelectedSubject }: StudentSubjectsViewProps) {
-  const [user] = useAuthState(auth);
+  const [userId, setUserId] = useState<string | null>(null);
   const [studentClass, setStudentClass] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    if (user) {
-      const userDocRef = doc(db, 'users', user.uid);
-      const unsubscribe = onSnapshot(userDocRef, (doc) => {
-        if (doc.exists()) {
-          const userData = doc.data();
-          setStudentClass(userData.class || null);
+    const fetchUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+          const { data } = await supabase.from('users').select('class_name').eq('uid', user.id).single();
+          setStudentClass(data?.class_name || null);
         }
+      } catch (err) {
+        console.warn('Error fetching user profile:', err);
+      } finally {
         setLoading(false);
-      });
-      return () => unsubscribe();
-    } else {
-        setLoading(false);
-    }
-  }, [user]);
+      }
+    };
+    fetchUser();
+  }, []);
 
   const subjects = studentClass ? subjectsByClass[studentClass] || [] : [];
 
@@ -279,13 +274,13 @@ export default function StudentSubjectsView({ selectedSubject, setSelectedSubjec
                 <TabsTrigger value="saved_classes">Saved Classes</TabsTrigger>
             </TabsList>
             <TabsContent value="worksheets" className="mt-4">
-                {studentClass && user && <StudentWorksheetsView studentClass={studentClass} subject={selectedSubject} studentId={user.uid} />}
+                {studentClass && userId && <StudentWorksheetsView studentClass={studentClass} subject={selectedSubject} studentId={userId} />}
             </TabsContent>
             <TabsContent value="quizzes" className="mt-4">
-               {studentClass && <QuizzesContent studentClass={studentClass} subject={selectedSubject} />}
+               {studentClass && userId && <QuizzesContent studentClass={studentClass} subject={selectedSubject} userId={userId} />}
             </TabsContent>
             <TabsContent value="games" className="mt-4">
-                {studentClass && <GamesContent studentClass={studentClass} subject={selectedSubject} />}
+                {studentClass && userId && <GamesContent studentClass={studentClass} subject={selectedSubject} userId={userId} />}
             </TabsContent>
             <TabsContent value="saved_classes" className="mt-4">
                 <PlaceholderContent icon={Icons.VideoIcon} title="Saved Classes" description="No materials have been added to this section yet." />
