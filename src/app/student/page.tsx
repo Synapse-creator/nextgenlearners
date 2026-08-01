@@ -12,12 +12,11 @@ import UserGuideView from '@/components/student/user-guide-view';
 import SettingsModal from '@/components/dashboard/settings-modal';
 import MiniStoryGenerator from '@/components/student/ai/mini-story-generator';
 import RhymeFinder from '@/components/student/ai/rhyme-finder';
-import SongGenerator from '@/components/student/ai/song-generator';
+import WordExplorer from '@/components/student/ai/word-explorer';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { BackpackIcon } from '@/components/icons';
 
 type View = 'dashboard' | 'subjects' | 'library' | 'calendar' | 'syllabus' | 'reading_buddy' | 'user_guide';
 
@@ -36,7 +35,7 @@ export default function StudentDashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [activeAiTool, setActiveAiTool] = useState<'song' | 'story' | 'rhyme' | null>(null);
+  const [activeAiTool, setActiveAiTool] = useState<'explorer' | 'story' | 'rhyme' | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -110,7 +109,7 @@ export default function StudentDashboardPage() {
       case 'subjects':
         return <StudentSubjectsView selectedSubject={activeSubject} setSelectedSubject={setActiveSubject} />;
       case 'syllabus':
-        return <SyllabusView />;
+        return <SyllabusView studentClass={userData?.class || "Class 3"} />;
       case 'reading_buddy':
         return <ReadingBuddyView />;
       case 'library':
@@ -217,13 +216,13 @@ export default function StudentDashboardPage() {
             </p>
             <div className="space-y-1">
               <button
-                onClick={() => setActiveAiTool('song')}
+                onClick={() => setActiveAiTool('explorer')}
                 className="w-full flex items-center gap-3 text-[#404945] hover:bg-[#CAF0F8]/40 px-4 py-3 rounded-xl transition-all group squishy-btn text-left"
               >
                 <span className="material-symbols-outlined text-[#2c6956] group-hover:scale-110 transition-transform">
-                  music_note
+                  explore
                 </span>
-                <span className="font-bold text-sm">Sing My Name</span>
+                <span className="font-bold text-sm">Word Explorer</span>
               </button>
 
               <button
@@ -311,8 +310,8 @@ export default function StudentDashboardPage() {
             <DialogDescription>Interactive AI Tool for students</DialogDescription>
           </DialogHeader>
 
-          {activeAiTool === 'song' && (
-            <SongGenerator studentName={displayName} />
+          {activeAiTool === 'explorer' && (
+            <WordExplorer studentName={displayName} />
           )}
           {activeAiTool === 'story' && (
             <MiniStoryGenerator />
