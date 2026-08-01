@@ -12,6 +12,8 @@ import { Loader2, Trash2, Link as LinkIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Form, FormControl, FormItem, FormMessage, FormLabel } from '../ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import ZoomMeeting from '../common/zoom-meeting';
 import { classes, subjectsByClass, isUrdu } from '@/lib/subjects';
 import { cn } from '@/lib/utils';
 import { isWithinInterval, addHours, setHours, setMinutes } from 'date-fns';
@@ -37,6 +39,7 @@ const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Sat
 
 const JoinClassButton = ({ session }: { session: TimetableItem }) => {
     const [isClassTime, setIsClassTime] = useState(false);
+    const [isZoomOpen, setIsZoomOpen] = useState(false);
 
     useEffect(() => {
         const checkTime = () => {
@@ -58,6 +61,31 @@ const JoinClassButton = ({ session }: { session: TimetableItem }) => {
         return () => clearInterval(interval);
     }, [session.time, session.day]);
     
+    // Determine if the link is a Zoom meeting ID (mostly numbers, spaces, or hyphens)
+    const isZoomId = session.link && /^[\d\s\-]{9,15}$/.test(session.link);
+
+    if (isZoomId) {
+        return (
+            <Dialog open={isZoomOpen} onOpenChange={setIsZoomOpen}>
+                <DialogTrigger asChild>
+                    <Button size="sm" className="btn-bounce bg-blue-600 hover:bg-blue-700" disabled={!isClassTime || !session.link}>
+                        Join Zoom Class
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-5xl p-0 border-none bg-transparent shadow-none">
+                    {session.link && (
+                        <ZoomMeeting
+                            meetingId={session.link}
+                            topic={`${session.subject} (${session.class})`}
+                            userName="Teacher"
+                            onClose={() => setIsZoomOpen(false)}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
     return (
         <a href={session.link} target="_blank" rel="noopener noreferrer">
             <Button size="sm" className="btn-bounce" disabled={!isClassTime || !session.link}>
@@ -229,11 +257,11 @@ export default function TimetableView() {
                 {errors.time && <FormMessage>Time is required.</FormMessage>}
               </FormItem>
                <FormItem>
-                <FormLabel htmlFor="link">Class Link</FormLabel>
+                <FormLabel htmlFor="link">Class Link or Zoom Meeting ID</FormLabel>
                 <FormControl>
-                  <Input id="link" type="url" placeholder="https://meet.google.com/..." {...control.register("link")} />
+                  <Input id="link" placeholder="Zoom ID (e.g. 123 456 7890) or URL" {...control.register("link")} />
                 </FormControl>
-                {errors.link && <FormMessage>Please enter a valid URL.</FormMessage>}
+                {errors.link && <FormMessage>Please enter a valid link or Meeting ID.</FormMessage>}
               </FormItem>
               <FormItem>
                   <FormLabel>Day</FormLabel>

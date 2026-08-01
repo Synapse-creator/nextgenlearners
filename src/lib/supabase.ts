@@ -11,6 +11,7 @@ export interface UserProfile {
   role: 'student' | 'teacher';
   class_name?: string;
   className?: string;
+  teacher_id?: string;
   created_at?: string;
 }
 

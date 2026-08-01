@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, useSidebar } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { BackpackIcon, LogOutIcon, UsersIcon, VideoIcon, CalendarIcon, BookUser } from '@/components/icons';
+import { BackpackIcon, LogOutIcon, UsersIcon, VideoIcon, CalendarIcon, BookUser, NotebookIcon } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import StudentList from '@/components/teacher/student-list';
@@ -75,11 +75,14 @@ export default function TeacherDashboardPage() {
           .single();
 
         const role = userProfile?.role || currentUser.user_metadata?.role || 'teacher';
-        if (role === 'teacher') {
+        const isAdmin = role === 'admin_teacher' || currentUser.email === 'admin@nextgenlearners.com';
+        
+        if (role === 'teacher' || role === 'admin_teacher' || isAdmin) {
           setUser({
             uid: currentUser.id,
-            name: userProfile?.name || currentUser.user_metadata?.name || 'Teacher',
+            name: userProfile?.name || currentUser.user_metadata?.name || (isAdmin ? 'Admin Teacher' : 'Teacher'),
             email: currentUser.email,
+            role: isAdmin ? 'admin_teacher' : role,
           });
         } else {
           router.push('/login');
@@ -93,6 +96,13 @@ export default function TeacherDashboardPage() {
 
     checkUser();
   }, [router, toast]);
+
+  const isAdminTeacher = user?.role === 'admin_teacher' || user?.email === 'admin@nextgenlearners.com';
+
+  const activeNavItems = [
+    ...(isAdminTeacher ? [{ id: 'leads' as View, label: 'Leads Inquiries', icon: NotebookIcon }] : []),
+    ...navItems,
+  ];
 
   const handleLogout = async () => {
     try {
@@ -109,7 +119,7 @@ export default function TeacherDashboardPage() {
         case 'leads':
             return <LeadsView />;
         case 'students':
-            return <StudentList />;
+            return <StudentList isAdminTeacher={isAdminTeacher} />;
         case 'subjects':
             return <SubjectsView />;
         case 'saved_classes':
@@ -123,7 +133,7 @@ export default function TeacherDashboardPage() {
         case 'user_guide':
             return <UserGuideView />;
         default:
-            return <StudentList />;
+            return <StudentList isAdminTeacher={isAdminTeacher} />;
     }
   }
 
@@ -148,7 +158,7 @@ export default function TeacherDashboardPage() {
           </SidebarHeader>
           <SidebarContent className="p-2">
             <SidebarMenu>
-              {navItems.map((item) => (
+              {activeNavItems.map((item) => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
                     onClick={() => setView(item.id)}

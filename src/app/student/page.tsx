@@ -79,6 +79,7 @@ export default function StudentDashboardPage() {
         setUserData({
           name: userProfile.name,
           class: userProfile.class_name || userProfile.class,
+          email: currentUser.email || userProfile.email,
         });
       }
     };
@@ -161,7 +162,7 @@ export default function StudentDashboardPage() {
                 </Avatar>
                 <div className="overflow-hidden">
                     <p className="text-sm font-semibold truncate text-sidebar-foreground">{userData?.name || "Student"}</p>
-                    <p className="text-xs text-muted-foreground truncate">{userData?.class || 'Class'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{userData?.email || userData?.class}</p>
                 </div>
              </div>
              <SidebarMenuButton onClick={handleLogout} className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg">

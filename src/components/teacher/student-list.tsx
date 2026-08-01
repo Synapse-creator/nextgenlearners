@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogTrigger } from '../ui/dialog';
 import AddStudentForm from './add-student-form';
+import AddTeacherForm from './add-teacher-form';
 import { Separator } from '../ui/separator';
 
 interface Student {
@@ -22,18 +23,32 @@ interface Student {
   email: string;
   class?: string;
   avatarUrl?: string;
+  teacher_id?: string;
+}
+
+interface Teacher {
+  uid: string;
+  name: string;
+  email: string;
+}
+
+interface StudentListProps {
+  isAdminTeacher?: boolean;
 }
 
 const avatarGifs = ['/avatars/avatar1.gif', '/avatars/avatar2.gif', '/avatars/avatar3.gif'];
 const getRandomAvatar = () => avatarGifs[Math.floor(Math.random() * avatarGifs.length)];
 
-export default function StudentList() {
+export default function StudentList({ isAdminTeacher = false }: StudentListProps) {
   const [students, setStudents] = useState<Student[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [classFilter, setClassFilter] = useState<string>("all");
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [isAddTeacherOpen, setIsAddTeacherOpen] = useState(false);
   const { toast } = useToast();
+
 
   const fetchStudents = async () => {
     try {
@@ -53,6 +68,7 @@ export default function StudentList() {
           email: doc.email,
           class: doc.class_name || doc.class,
           avatarUrl: getRandomAvatar(),
+          teacher_id: doc.teacher_id,
         }));
         setStudents(studentList);
       } else {
@@ -70,6 +86,18 @@ export default function StudentList() {
 
   useEffect(() => {
     fetchStudents();
+
+    const fetchTeachers = async () => {
+        try {
+            const { data, error } = await supabase.from('users').select('*').in('role', ['teacher', 'admin_teacher']);
+            if (data) {
+                setTeachers(data.map(doc => ({ uid: doc.uid || doc.id, name: doc.name, email: doc.email })));
+            }
+        } catch (e) {
+            console.error("Error fetching teachers", e);
+        }
+    };
+    fetchTeachers();
 
     // Subscribe to realtime updates on users table
     const subscription = supabase
@@ -105,6 +133,31 @@ export default function StudentList() {
         variant: "destructive",
         title: "Error",
         description: "Could not assign class.",
+      });
+    }
+  };
+
+  const handleTeacherAssign = async (studentId: string, teacherId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ teacher_id: teacherId })
+        .eq('uid', studentId);
+
+      if (error) throw error;
+
+      setStudents(prev => prev.map(s => s.uid === studentId ? { ...s, teacher_id: teacherId || undefined } : s));
+
+      toast({
+        title: "Teacher Assigned!",
+        description: `Successfully assigned teacher.`,
+      });
+    } catch (err) {
+      console.error("Error assigning teacher:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not assign teacher.",
       });
     }
   };
@@ -177,17 +230,33 @@ export default function StudentList() {
                         ))}
                     </SelectContent>
                 </Select>
-                <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="w-full sm:w-auto">
-                            <PlusCircle className="w-4 h-4 mr-2" />
-                            Add Student
+                {isAdminTeacher && (
+                  <div className="flex items-center gap-2">
+                    <Dialog open={isAddTeacherOpen} onOpenChange={setIsAddTeacherOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="w-full sm:w-auto">
+                          <PlusCircle className="w-4 h-4 mr-2 text-primary" />
+                          Add Teacher
                         </Button>
-                    </DialogTrigger>
-                    <DialogContent>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <AddTeacherForm setOpen={setIsAddTeacherOpen} />
+                      </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="w-full sm:w-auto font-bold btn-bounce">
+                          <PlusCircle className="w-4 h-4 mr-2" />
+                          Add Student
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
                         <AddStudentForm setOpen={setIsAddStudentOpen} />
-                    </DialogContent>
-                </Dialog>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                )}
             </div>
         </div>
       </CardHeader>
@@ -213,26 +282,51 @@ export default function StudentList() {
                 <div className="flex flex-col gap-2">
                     <div className="text-sm">
                         <span className="font-medium">Class: </span>
-                        <span className="text-muted-foreground">{student.class || 'N/A'}</span>
+                        <span className="text-muted-foreground font-bold">{student.class || 'Unassigned'}</span>
                     </div>
-                    <div>
-                        <label className="text-sm font-medium">Assign Class</label>
-                        <Select
-                            defaultValue={student.class}
-                            onValueChange={(value) => handleClassAssign(student.uid, value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a class" />
-                            </SelectTrigger>
-                            <SelectContent>
-                            {classes.map((className) => (
-                                <SelectItem key={className} value={className}>
-                                {className}
-                                </SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    {isAdminTeacher ? (
+                      <div className="flex flex-col gap-4">
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Assign Class</label>
+                            <Select
+                                defaultValue={student.class}
+                                onValueChange={(value) => handleClassAssign(student.uid, value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a class" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                {classes.map((className) => (
+                                    <SelectItem key={className} value={className}>
+                                    {className}
+                                    </SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Assign Teacher</label>
+                            <Select
+                                defaultValue={student.teacher_id || "unassigned"}
+                                onValueChange={(value) => handleTeacherAssign(student.uid, value === "unassigned" ? null : value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a teacher" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                                    {teachers.map((teacher) => (
+                                        <SelectItem key={teacher.uid} value={teacher.uid}>
+                                            {teacher.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">Only Admin Teachers can modify class assignments.</p>
+                    )}
                 </div>
               </div>
             ))
@@ -251,8 +345,13 @@ export default function StudentList() {
                 <TableHead className="w-[80px]">Avatar</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead className="w-[150px] sm:w-[200px]">Assign Class</TableHead>
+                <TableHead>Assigned Class</TableHead>
+                {isAdminTeacher && (
+                  <>
+                    <TableHead className="w-[150px] sm:w-[200px]">Assign Class</TableHead>
+                    <TableHead className="w-[150px] sm:w-[200px]">Assign Teacher</TableHead>
+                  </>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -271,29 +370,51 @@ export default function StudentList() {
                       </Link>
                     </TableCell>
                     <TableCell>{student.email}</TableCell>
-                    <TableCell>{student.class || 'N/A'}</TableCell>
-                    <TableCell>
-                      <Select
-                        defaultValue={student.class}
-                        onValueChange={(value) => handleClassAssign(student.uid, value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a class" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {classes.map((className) => (
-                            <SelectItem key={className} value={className}>
-                              {className}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
+                    <TableCell><span className="px-2.5 py-1 bg-primary/10 text-primary font-bold text-xs rounded-full">{student.class || 'Unassigned'}</span></TableCell>
+                    {isAdminTeacher && (
+                      <>
+                        <TableCell>
+                          <Select
+                            defaultValue={student.class}
+                            onValueChange={(value) => handleClassAssign(student.uid, value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a class" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {classes.map((className) => (
+                                <SelectItem key={className} value={className}>
+                                  {className}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            defaultValue={student.teacher_id || "unassigned"}
+                            onValueChange={(value) => handleTeacherAssign(student.uid, value === "unassigned" ? null : value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a teacher" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                              {teachers.map((teacher) => (
+                                  <SelectItem key={teacher.uid} value={teacher.uid}>
+                                      {teacher.name}
+                                  </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={isAdminTeacher ? 6 : 4} className="h-24 text-center">
                     No students found for this filter.
                   </TableCell>
                 </TableRow>

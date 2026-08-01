@@ -2,73 +2,55 @@
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookUser, CheckCircle2 } from "lucide-react";
+import { BookUser, CheckCircle2, ShieldCheck, Video, Users, Sparkles } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const guideSections = [
+const adminGuideSections = [
     {
-        title: "1. Getting Started: Sign Up & Login",
+        title: "👑 1. Admin Teacher Capabilities & Privileges",
         content: [
-            { heading: "Sign Up", text: "When creating your account, make sure to select the “Teacher” role." },
-            { heading: "Login", text: "Access your dashboard through the main login page. You'll be directed to your teacher-specific view." }
+            { heading: "Exclusive Roster Authority", text: "Only Admin Teachers (e.g. admin@nextgenlearners.com) can create new student accounts, create new teacher accounts, and assign/change student class rosters." },
+            { heading: "Enrollment Leads Inquiries", text: "Admin Teachers have full access to the 'Leads Inquiries' tab to manage all website enrollment form submissions." }
         ]
     },
     {
-        title: "2. Navigating the Teacher Dashboard",
+        title: "🍎 2. Adding Teachers & Students",
         content: [
-            "Your sidebar is packed with powerful tools:",
-            { heading: "Students", text: "Your main student roster. View all registered students, assign them to a class, and access their individual detail pages." },
-            { heading: "Subjects", text: "Manage all learning content here. Select a class to view its subjects, then add worksheets and create AI-powered quizzes." },
-            { heading: "Timetable", text: "Create and manage the weekly schedule for all classes. Add or remove sessions, and the changes will instantly appear on your students' calendars." },
-            { heading: "Lesson Planner", text: "Your AI assistant for curriculum planning! Select a class, subject, and a topic from the syllabus, and the AI will generate a complete lesson plan." },
-            { heading: "Syllabus", text: "View, download, and share the official syllabus PDF for any class." },
-            { heading: "Leads", text: "View and manage new enrollment applications submitted through the website." }
+            { heading: "Add Teacher Account", text: "Go to 'Students Roster', click '+ Add Teacher', and enter their full name, email, and password." },
+            { heading: "Add Student Account", text: "Click '+ Add Student', enter student and parent details, and assign their initial class." },
+            { heading: "Assigning Roster", text: "Use the 'Assign Class' dropdown on any student's row to update their class enrollment instantly." }
+        ]
+    }
+];
+
+const teacherGuideSections = [
+    {
+        title: "1. Navigating the Teacher Dashboard",
+        content: [
+            { heading: "Students", text: "View assigned student roster and access individual student detail pages." },
+            { heading: "Subjects", text: "Manage class worksheets and create AI-powered quizzes for your subjects." },
+            { heading: "Timetable & Embedded Zoom", text: "Schedule live classes and provide Zoom Meeting IDs for internal embedded classes." },
+            { heading: "Lesson Planner", text: "Generate complete AI lesson plans based on class, subject, and topic." },
+            { heading: "Syllabus", text: "View and share official syllabus documents." }
         ]
     },
     {
-        title: "3. Managing Your Students",
+        title: "2. Creating AI Quizzes & Worksheets",
         content: [
-            {
-                heading: "Student Roster",
-                text: "This is your central hub for student management. Click 'Add Student' to create a profile, and use the dropdown to assign a class. This is crucial for giving them access to the right materials."
-            },
-            {
-                heading: "Individual Student Page",
-                text: "Click on any student's name to go to their detailed page. Here you can award badges, generate AI progress reports based on their performance, and view their scores."
-            }
+            { heading: "AI Quizzes", text: "Go to Subjects → Select Class → Manage Quizzes → Enter prompt and click Generate Quiz." },
+            { heading: "Worksheets", text: "Go to Subjects → Select Class → Manage Worksheets → Add Title and URL link." }
         ]
-    },
+    }
+];
+
+const zoomGuideSections = [
     {
-        title: "4. Creating an AI-Powered Quiz",
+        title: "🎥 1. Internal Embedded Zoom Live Classes",
         content: [
-            "Our platform makes it easy to generate fun quizzes in seconds.",
-            { heading: "Navigate to Subjects", text: "Click on the 'Subjects' tab in the sidebar." },
-            { heading: "Select a Class", text: "Choose the class you want to create a quiz for." },
-            { heading: "Manage Quizzes", text: "Find the relevant subject and click the 'Manage Quizzes' button." },
-            { heading: "Create & Prompt", text: "In the dialog, click 'Create New Quiz' and give the AI a clear prompt (e.g., 'A 5-question quiz about summer fruits for KG')." },
-            { heading: "Generate & Save", text: "Click 'Generate Quiz.' Review the questions, and if you're happy, click 'Save Quiz' to make it available to your students." }
-        ]
-    },
-    {
-        title: "5. Adding Worksheets/Assignments",
-        content: [
-            "You can easily link to external worksheets from Google Docs or other online resources.",
-            { heading: "Navigate to Subjects", text: "Go to the 'Subjects' tab." },
-            { heading: "Select a Class", text: "Choose the relevant class." },
-            { heading: "Manage Worksheets", text: "Find the subject and click 'Manage Worksheets'." },
-            { heading: "Add Worksheet", text: "In the dialog, give your worksheet a Title and paste the publicly accessible Link (e.g., a Google Drive link) into the URL field." },
-            { heading: "Save", text: "Click 'Add Worksheet.' It will now appear in the student's subject view." }
-        ]
-    },
-     {
-        title: "6. Scheduling a Live Class",
-        content: [
-            "Easily schedule your live classes and provide the join link.",
-            { heading: "Go to Timetable", text: "Navigate to the 'Timetable' section from your sidebar." },
-            { heading: "Fill in Details", text: "Select the class, subject, day, and time for your session." },
-            { heading: "Add the Class Link", text: "Paste the URL for your online class (e.g., Google Meet, Zoom) into the 'Class Link' field." },
-            { heading: "Add Session", text: "Click 'Add Session'. The class is now on the schedule for both you and your students." },
-            { heading: "Starting a Class", text: "At the time of the class, a 'Join Class' button will become active in your timetable and on the relevant subject card for easy access." }
+            { heading: "No External Redirection", text: "Zoom live classes open directly inside an embedded player modal right within NextGen Learners." },
+            { heading: "Joining a Meeting", text: "Click 'Join Live Class' in the Timetable or Subject view. The embedded window will load with full camera, microphone, screen share, and chat controls." },
+            { heading: "Browser Permissions", text: "Make sure to allow camera and microphone access when prompted by your browser." }
         ]
     }
 ];
@@ -78,34 +60,87 @@ export default function UserGuideView() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-headline text-2xl">
-          <BookUser /> For Teachers
+          <BookUser className="w-6 h-6 text-primary" /> Platform User Guide
         </CardTitle>
-        <CardDescription>This section covers all the tools available in the Teacher Dashboard to help you manage your digital classroom.</CardDescription>
+        <CardDescription>Comprehensive guide for Admin Teachers, Instructors, and Students.</CardDescription>
       </CardHeader>
       <CardContent>
-         <Accordion type="single" collapsible className="w-full" defaultValue="item-0">
-            {guideSections.map((section, index) => (
+        <Tabs defaultValue="admin" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="admin" className="font-bold flex items-center gap-1">
+              <ShieldCheck className="w-4 h-4" /> Admin Guide
+            </TabsTrigger>
+            <TabsTrigger value="teacher" className="font-bold flex items-center gap-1">
+              <Users className="w-4 h-4" /> Teacher Guide
+            </TabsTrigger>
+            <TabsTrigger value="zoom" className="font-bold flex items-center gap-1">
+              <Video className="w-4 h-4" /> Embedded Zoom Guide
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="admin">
+            <Accordion type="single" collapsible className="w-full" defaultValue="item-0">
+              {adminGuideSections.map((section, index) => (
                 <AccordionItem key={index} value={`item-${index}`}>
-                    <AccordionTrigger className="text-left font-bold text-lg">{section.title}</AccordionTrigger>
-                    <AccordionContent className="text-base text-muted-foreground space-y-4">
-                        {section.content.map((item, itemIndex) => {
-                            if (typeof item === 'string') {
-                                return <p key={itemIndex}>{item}</p>
-                            }
-                            return (
-                                <div key={itemIndex} className="flex items-start gap-3">
-                                    <CheckCircle2 className="w-5 h-5 text-green-500 mt-1 flex-shrink-0"/>
-                                    <div>
-                                        <p className="font-semibold text-foreground">{item.heading}</p>
-                                        <p className="text-sm">{item.text}</p>
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </AccordionContent>
+                  <AccordionTrigger className="text-left font-bold text-lg">{section.title}</AccordionTrigger>
+                  <AccordionContent className="text-base text-muted-foreground space-y-4">
+                    {section.content.map((item, itemIndex) => (
+                      <div key={itemIndex} className="flex items-start gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-500 mt-1 flex-shrink-0"/>
+                        <div>
+                          <p className="font-semibold text-foreground">{item.heading}</p>
+                          <p className="text-sm">{item.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </AccordionContent>
                 </AccordionItem>
-            ))}
-        </Accordion>
+              ))}
+            </Accordion>
+          </TabsContent>
+
+          <TabsContent value="teacher">
+            <Accordion type="single" collapsible className="w-full" defaultValue="item-0">
+              {teacherGuideSections.map((section, index) => (
+                <AccordionItem key={index} value={`item-${index}`}>
+                  <AccordionTrigger className="text-left font-bold text-lg">{section.title}</AccordionTrigger>
+                  <AccordionContent className="text-base text-muted-foreground space-y-4">
+                    {section.content.map((item, itemIndex) => (
+                      <div key={itemIndex} className="flex items-start gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-500 mt-1 flex-shrink-0"/>
+                        <div>
+                          <p className="font-semibold text-foreground">{item.heading}</p>
+                          <p className="text-sm">{item.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </TabsContent>
+
+          <TabsContent value="zoom">
+            <Accordion type="single" collapsible className="w-full" defaultValue="item-0">
+              {zoomGuideSections.map((section, index) => (
+                <AccordionItem key={index} value={`item-${index}`}>
+                  <AccordionTrigger className="text-left font-bold text-lg">{section.title}</AccordionTrigger>
+                  <AccordionContent className="text-base text-muted-foreground space-y-4">
+                    {section.content.map((item, itemIndex) => (
+                      <div key={itemIndex} className="flex items-start gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-500 mt-1 flex-shrink-0"/>
+                        <div>
+                          <p className="font-semibold text-foreground">{item.heading}</p>
+                          <p className="text-sm">{item.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
