@@ -1,4 +1,3 @@
-
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -98,7 +97,7 @@ export default {
         },
         'accordion-up': {
           from: {
-            height: 'var(--radix-accordion-content-height)',
+            height: 'var(--radix-[#accordion-content-height])',
           },
           to: {
             height: '0',
