@@ -5,12 +5,12 @@ import { getStorage } from "firebase/storage";
 import { supabase } from "./supabase";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDq3vyNquFbWLG_TpRC8eOZoLV1Z8NpAgw",
-  authDomain: "nextgen-learners5.firebaseapp.com",
-  projectId: "nextgen-learners5",
-  storageBucket: "nextgen-learners5.firebasestorage.app",
-  messagingSenderId: "1000946085872",
-  appId: "1:1000946085872:web:04cbbf687928b06520f735"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -19,3 +19,4 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 export { app, auth, db, storage, supabase };
+

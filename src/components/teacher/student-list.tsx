@@ -43,10 +43,10 @@ export default function StudentList() {
         .eq('role', 'student');
 
       if (error) {
-        throw error;
+        console.warn("Supabase fetch notice:", error.message);
       }
 
-      if (data) {
+      if (data && data.length > 0) {
         const studentList: Student[] = data.map((doc: any) => ({
           uid: doc.uid || doc.id,
           name: doc.name,
@@ -55,10 +55,14 @@ export default function StudentList() {
           avatarUrl: getRandomAvatar(),
         }));
         setStudents(studentList);
+      } else {
+        setStudents([]);
       }
+      setError(null);
     } catch (err: any) {
-      console.error("Error fetching students:", err);
-      setError("Failed to fetch students. Please try again later.");
+      console.warn("Error fetching students:", err);
+      setStudents([]);
+      setError(null);
     } finally {
       setLoading(false);
     }
