@@ -57,8 +57,10 @@ const availableBadges = [
 
 const avatarGifs = ['/avatars/avatar1.gif', '/avatars/avatar2.gif', '/avatars/avatar3.gif'];
 
-export default function StudentDetailPage({ params }: { params: { studentId: string } }) {
-  const { studentId } = params;
+import { use } from 'react';
+
+export default function StudentDetailPage({ params }: { params: Promise<{ studentId: string }> }) {
+  const { studentId } = use(params);
   const [student, setStudent] = useState<Student | null>(null);
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
   const [worksheetSubmissions, setWorksheetSubmissions] = useState<WorksheetSubmission[]>([]);

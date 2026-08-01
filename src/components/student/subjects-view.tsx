@@ -21,6 +21,8 @@ import NumberBubblePop from "./games/number-bubble-pop";
 import ScienceLabAdventure from "./games/science-lab-adventure";
 import GoodDeedsPath from "./games/good-deeds-path";
 import GoodMannersMaze from "./games/good-manners-maze";
+import MathBalance from "./games/math-balance";
+import SpellingBee from "./games/spelling-bee";
 import StudentWorksheetsView from "./student-worksheets-view";
 
 
@@ -44,14 +46,30 @@ const GamesContent = ({ studentClass, subject, userId }: { studentClass: string;
         return <RandomGame studentClass={studentClass} studentId={userId} subject={subject} />;
     }, [studentClass, subject, userId]);
 
+    const mathGame = React.useMemo(() => {
+        const games = [NumberBubblePop, MathBalance];
+        const RandomGame = games[Math.floor(Math.random() * games.length)];
+        return <RandomGame studentClass={studentClass} studentId={userId} subject={subject} />;
+    }, [studentClass, subject, userId]);
+
+    const languageGame = React.useMemo(() => {
+        // Spelling bee is english only
+        if (isUrdu(subject)) {
+            return <LetterWordSplash studentClass={studentClass} studentId={userId} subject={subject} />;
+        }
+        const games = [LetterWordSplash, SpellingBee];
+        const RandomGame = games[Math.floor(Math.random() * games.length)];
+        return <RandomGame studentClass={studentClass} studentId={userId} subject={subject} />;
+    }, [studentClass, subject, userId]);
+
     if (!userId) return null;
 
     if (isLanguageSubject(subject)) {
-        return <LetterWordSplash studentClass={studentClass} studentId={userId} subject={subject} />;
+        return languageGame;
     }
     
     if (isMathSubject(subject)) {
-        return <NumberBubblePop studentClass={studentClass} studentId={userId} subject={subject} />;
+        return mathGame;
     }
 
     if (isGkScienceSubject(subject)) {

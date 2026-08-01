@@ -26,6 +26,7 @@ interface UserData {
     name?: string;
     parentName?: string;
     class?: string;
+    email?: string;
 }
 
 const navItems: { id: View; label: string; icon: React.ElementType }[] = [
