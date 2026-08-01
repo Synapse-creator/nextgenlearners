@@ -9,6 +9,20 @@ export default {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    container: {
+      center: true,
+      padding: {
+        DEFAULT: '1rem',
+        sm: '1.5rem',
+        md: '2rem',
+        lg: '3rem',
+        xl: '4rem',
+        '2xl': '5rem',
+      },
+      screens: {
+        '2xl': '1320px',
+      },
+    },
     extend: {
       fontFamily: {
         body: ['var(--font-poppins)', 'sans-serif'],

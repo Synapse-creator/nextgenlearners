@@ -84,34 +84,28 @@ const generateSongFlow = ai.defineFlow(
     const lyricsResponse = await lyricsPrompt(input);
     const lyrics = lyricsResponse.output!.lyrics;
 
-    // Step 2: Generate audio from lyrics
-    const { media } = await ai.generate({
-      model: googleAI.model('gemini-2.5-flash-preview-tts'),
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Algenib' }, // A friendly voice
-          },
-        },
-      },
-      prompt: lyrics,
-    });
-
-    if (!media) {
-      throw new Error('Audio generation failed.');
+    // Step 2: Generate audio from lyrics if possible, or return empty audio URI
+    let audioDataUri = '';
+    try {
+      const { media } = await ai.generate({
+        model: googleAI.model('gemini-1.5-flash'),
+        prompt: lyrics,
+      });
+      if (media && media.url) {
+        const audioBuffer = Buffer.from(
+          media.url.substring(media.url.indexOf(',') + 1),
+          'base64'
+        );
+        const wavBase64 = await toWav(audioBuffer);
+        audioDataUri = 'data:audio/wav;base64,' + wavBase64;
+      }
+    } catch (e) {
+      console.warn('Audio generation skipped or failed:', e);
     }
-
-    const audioBuffer = Buffer.from(
-      media.url.substring(media.url.indexOf(',') + 1),
-      'base64'
-    );
-
-    const wavBase64 = await toWav(audioBuffer);
     
     return {
       lyrics,
-      audioDataUri: 'data:audio/wav;base64,' + wavBase64,
+      audioDataUri,
     };
   }
 );

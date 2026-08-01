@@ -4,6 +4,7 @@ import { PT_Sans } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { cn } from '@/lib/utils';
+import { Analytics } from '@vercel/analytics/react';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -59,7 +60,9 @@ export default function RootLayout({
       )}>
         {children}
         <Toaster />
+        <Analytics />
       </body>
     </html>
   );
 }
+
