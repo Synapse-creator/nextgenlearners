@@ -1,0 +1,30 @@
+# NextGen Learners LMS
+
+> NextGen Learners is an AI-powered, play-based Learning Management System (LMS) for students from Playgroup (PG) to Class 3.
+
+## Overview
+NextGen Learners offers gamified learning, live interactive classes, AI progress tracking, and localized curriculum support (English, Urdu, Islamic Studies, Science, Math, Art) tailored for early childhood education in Pakistan.
+
+## Student Features
+- **My Learning Path**: Class-tailored subject cards with interactive educational games.
+- **Urdu & Islamiat Learning Suite**: Nastaleeq-formatted alphabet phonics, word building, grammar, Wudu steps guide, and moral character quests.
+- **AI Explorer Tools**: AI Word & Knowledge Explorer, Story Generator, Rhyme Finder, and Reading Buddy.
+- **Interactive Quizzes & Worksheets**: Assessment tools with instant feedback and score tracking.
+
+## Teacher Features
+- **Roster & Timetable Management**: Live scheduling and student class assignments.
+- **AI Progress Generator**: Automated weekly student progress reports.
+- **Quiz Creator**: Dynamic quiz creation tool.
+
+## API & Technology Stack
+- Next.js 15 App Router
+- Supabase SSR Auth & PostgreSQL Database
+- Genkit & Groq Generative AI
+- Tailwind CSS with Jameel Noori Nastaleeq Font Support
+
+## Documentation & Links
+- [Homepage](https://nextgenlearners.pk/)
+- [Student Portal](https://nextgenlearners.pk/student)
+- [Teacher Portal](https://nextgenlearners.pk/teacher)
+- [Wudu Interactive Guide](https://nextgenlearners.pk/wudu-game)
+- [User Guide & Terms](https://nextgenlearners.pk/terms)

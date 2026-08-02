@@ -1,2 +1,30 @@
+# robots.txt for NextGen Learners LMS
+
 User-agent: *
 Allow: /
+
+# Explicit AI and LLM Crawler Permissions
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# LLM Specification documentation
+# https://llmstxt.org
+# llms.txt: /llms.txt
